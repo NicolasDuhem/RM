@@ -1,0 +1,17 @@
+{
+  "name": "roadmap-tool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone, portable roadmap management tool. Flat JSON files, no database, one folder.",
+  "main": "app/server.js",
+  "scripts": {
+    "start": "node app/server.js",
+    "start:open": "node app/server.js --open",
+    "test": "node tests/run-tests.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

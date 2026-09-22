@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roadmap Tool</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name" id="brand-name">Roadmap Tool</span>
+    </div>
+
+    <nav class="nav" aria-label="Main">
+      <button class="nav-link" type="button" data-view="roadmap">Roadmap</button>
+      <button class="nav-link" type="button" data-view="dependencies">Dependencies</button>
+      <button class="nav-link" type="button" data-view="backlog">Backlog</button>
+      <button class="nav-link" type="button" data-view="resources">Resources</button>
+      <button class="nav-link" type="button" data-view="data">Data</button>
+      <button class="nav-link" type="button" data-view="settings">Settings</button>
+    </nav>
+
+    <button class="editor-chip" type="button" id="editor-button" title="Your edits are labelled with this name">
+      <span class="editor-chip-label">Editing as</span>
+      <span class="editor-chip-name" id="editor-name">Set your name</span>
+    </button>
+  </header>
+
+  <main class="app-main" id="view-root"></main>
+
+  <div class="toast-host" id="toast-host" aria-live="polite"></div>
+  <div id="modal-host"></div>
+
+  <script src="js/app.js"></script>
+  <script src="js/gantt.js"></script>
+  <script src="js/roadmap.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/dependencies.js"></script>
+  <script src="js/backlog.js"></script>
+  <script src="js/resources.js"></script>
+  <script src="js/dataManagement.js"></script>
+  <script>window.RM.boot();</script>
+</body>
+</html>

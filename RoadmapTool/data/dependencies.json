@@ -1,0 +1,72 @@
+{
+  "revision": 1,
+  "updatedAt": "2026-09-22T14:25:44.539Z",
+  "records": [
+    {
+      "id": "DEP-0001",
+      "fromItemId": "RM-0001",
+      "toItemId": "RM-0002",
+      "dependencyType": "predecessor",
+      "description": "The matrix needs the Salesforce accreditation data model in place.",
+      "status": "open",
+      "owner": "Nicolas",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "DEP-0002",
+      "fromItemId": "RM-0002",
+      "toItemId": "RM-0003",
+      "dependencyType": "predecessor",
+      "description": "Catalogue restriction consumes the published accreditation matrix.",
+      "status": "open",
+      "owner": "Jake",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "DEP-0003",
+      "fromItemId": "RM-0003",
+      "toItemId": "RM-0009",
+      "dependencyType": "gate",
+      "description": "USA rollout waits for product eligibility to be enforced.",
+      "status": "open",
+      "owner": "Jake",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "DEP-0004",
+      "fromItemId": "RM-0007",
+      "toItemId": "RM-0009",
+      "dependencyType": "system",
+      "description": "USA rollout needs order integration live.",
+      "status": "open",
+      "owner": "Jake",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "DEP-0005",
+      "fromItemId": "RM-0008",
+      "toItemId": "RM-0012",
+      "dependencyType": "data",
+      "description": "Cross-entity visibility needs reliable per-entity stock first.",
+      "status": "open",
+      "owner": "Priya",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "DEP-0006",
+      "fromItemId": "RM-0004",
+      "toItemId": "RM-0005",
+      "dependencyType": "data",
+      "description": "Translation source depends on the agreed product data definition.",
+      "status": "open",
+      "owner": "Sarah",
+      "blocking": false,
+      "notes": ""
+    }
+  ]
+}

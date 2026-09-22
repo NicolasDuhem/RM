@@ -1,0 +1,977 @@
+{
+  "revision": 1,
+  "updatedAt": "2026-09-22T14:25:44.538Z",
+  "records": [
+    {
+      "id": "RM-0001",
+      "programmeId": "PRG-0001",
+      "title": "Salesforce Accreditation Model",
+      "shortTitle": "Salesforce accreditation",
+      "systemArea": "salesforce",
+      "subArea": "Accreditation",
+      "type": "system-change",
+      "startDate": "2026-09-01",
+      "endDate": "2026-10-31",
+      "targetDate": "2026-10-31",
+      "status": "build",
+      "priority": "critical",
+      "businessOwner": "Nicolas",
+      "productOwner": "Nicolas",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Nicolas",
+      "description": "Data model in Salesforce holding the accreditation each dealer holds, with effective dates.",
+      "businessOutcome": "One authoritative record of what a dealer is accredited for.",
+      "problemStatement": "Accreditation is held in spreadsheets and is not visible to the ordering platform.",
+      "scope": "Accreditation object, dealer relationship, effective dating, audit of change.",
+      "outOfScope": "Automated training/certification tracking.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "build",
+      "milestones": [
+        {
+          "id": "MS-0001",
+          "name": "Definition",
+          "date": "2026-09-12",
+          "status": "live",
+          "notes": ""
+        },
+        {
+          "id": "MS-0002",
+          "name": "Build",
+          "date": "2026-10-10",
+          "status": "build",
+          "notes": ""
+        },
+        {
+          "id": "MS-0003",
+          "name": "Live",
+          "date": "2026-10-31",
+          "status": "idea",
+          "notes": ""
+        }
+      ],
+      "risks": [
+        {
+          "id": "RISK-0001",
+          "title": "Accreditation data quality",
+          "description": "Existing spreadsheet data is incomplete.",
+          "impact": "High",
+          "probability": "Medium",
+          "mitigation": "Data cleanse before migration, dealer confirmation round.",
+          "owner": "Nicolas",
+          "status": "open"
+        }
+      ],
+      "tickets": [
+        {
+          "id": "TKT-0001",
+          "roadmapItemId": "RM-0001",
+          "title": "Create Accreditation object",
+          "description": "",
+          "system": "salesforce",
+          "status": "build",
+          "owner": "Nicolas",
+          "acceptanceCriteria": "",
+          "notes": "",
+          "externalReference": ""
+        },
+        {
+          "id": "TKT-0002",
+          "roadmapItemId": "RM-0001",
+          "title": "Migrate accreditation spreadsheet",
+          "description": "",
+          "system": "salesforce",
+          "status": "ready",
+          "owner": "Data team",
+          "acceptanceCriteria": "",
+          "notes": "",
+          "externalReference": ""
+        }
+      ],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 5,
+            "dev": 15,
+            "int": 5,
+            "data": 0
+          },
+          "risk": "Higher technical debt - reuses the existing account extension.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 10,
+            "dev": 30,
+            "int": 15,
+            "data": 5
+          },
+          "risk": "Normal",
+          "notes": "Proper master-data model with effective dating."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0002",
+      "programmeId": "PRG-0001",
+      "title": "Platform Accreditation Matrix",
+      "shortTitle": "Accreditation matrix",
+      "systemArea": "bpp",
+      "subArea": "Eligibility",
+      "type": "system-change",
+      "startDate": "2026-10-15",
+      "endDate": "2026-12-15",
+      "targetDate": "2026-12-15",
+      "status": "definition",
+      "priority": "high",
+      "businessOwner": "Jake",
+      "productOwner": "Jake",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Jake",
+      "description": "Matrix mapping accreditation to product categories and channels.",
+      "businessOutcome": "A maintainable rule set rather than hard-coded restrictions.",
+      "problemStatement": "",
+      "scope": "Matrix maintenance screen, versioning, publication to the platform.",
+      "outOfScope": "Per-dealer pricing.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "definition",
+      "milestones": [
+        {
+          "id": "MS-0004",
+          "name": "Definition",
+          "date": "2026-10-30",
+          "status": "definition",
+          "notes": ""
+        },
+        {
+          "id": "MS-0005",
+          "name": "MVP",
+          "date": "2026-12-01",
+          "status": "idea",
+          "notes": ""
+        }
+      ],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 4,
+            "dev": 12,
+            "int": 3,
+            "data": 2
+          },
+          "risk": "Matrix held as configuration only.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 8,
+            "dev": 25,
+            "int": 8,
+            "data": 5
+          },
+          "risk": "Normal",
+          "notes": "Full maintenance UI with versioning."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0003",
+      "programmeId": "PRG-0001",
+      "title": "BPP Product Eligibility Restriction",
+      "shortTitle": "BPP restriction",
+      "systemArea": "bpp",
+      "subArea": "Catalogue",
+      "type": "system-change",
+      "startDate": "2026-12-01",
+      "endDate": "2027-02-15",
+      "targetDate": "2027-02-15",
+      "status": "ready",
+      "priority": "high",
+      "businessOwner": "Jake",
+      "productOwner": "Jake",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Jake",
+      "description": "Apply the accreditation matrix to the catalogue so ineligible products are not orderable.",
+      "businessOutcome": "Dealers cannot order products they are not accredited for.",
+      "problemStatement": "",
+      "scope": "Catalogue filtering, basket validation, clear messaging to the dealer.",
+      "outOfScope": "Retrospective validation of historic orders.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "ready",
+      "milestones": [
+        {
+          "id": "MS-0006",
+          "name": "Build",
+          "date": "2027-01-15",
+          "status": "idea",
+          "notes": ""
+        },
+        {
+          "id": "MS-0007",
+          "name": "Live",
+          "date": "2027-02-15",
+          "status": "idea",
+          "notes": ""
+        }
+      ],
+      "risks": [],
+      "tickets": [],
+      "gates": [
+        {
+          "id": "GAT-0001",
+          "title": "Sign-off of the accreditation matrix",
+          "description": "Commercial sign-off needed before catalogue restriction goes live.",
+          "owner": "Commercial",
+          "requiredByDate": "2026-12-15",
+          "status": "open",
+          "decision": "",
+          "decisionDate": "",
+          "notes": ""
+        }
+      ],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 3,
+            "dev": 10,
+            "int": 2,
+            "data": 0
+          },
+          "risk": "Catalogue filter only, no basket revalidation.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 8,
+            "dev": 22,
+            "int": 6,
+            "data": 2
+          },
+          "risk": "Normal",
+          "notes": "Filtering plus basket and order validation."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0004",
+      "programmeId": "PRG-0002",
+      "title": "Product Data Definition",
+      "shortTitle": "Product data definition",
+      "systemArea": "data",
+      "subArea": "Master data",
+      "type": "discovery",
+      "startDate": "2026-09-15",
+      "endDate": "2026-11-30",
+      "targetDate": "2026-11-30",
+      "status": "discovery",
+      "priority": "high",
+      "businessOwner": "Sarah",
+      "productOwner": "Sarah",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Sarah",
+      "description": "Define the product master attributes, ownership and the golden source for each attribute.",
+      "businessOutcome": "Agreed definition of product data before any PIM investment.",
+      "problemStatement": "",
+      "scope": "Attribute catalogue, ownership, source system per attribute.",
+      "outOfScope": "Tool selection.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "discovery",
+      "milestones": [
+        {
+          "id": "MS-0008",
+          "name": "Discovery",
+          "date": "2026-10-15",
+          "status": "discovery",
+          "notes": ""
+        },
+        {
+          "id": "MS-0009",
+          "name": "Definition",
+          "date": "2026-11-30",
+          "status": "idea",
+          "notes": ""
+        }
+      ],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 10,
+            "dev": 0,
+            "int": 0,
+            "data": 5
+          },
+          "risk": "Workshop-led definition only.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 20,
+            "dev": 0,
+            "int": 0,
+            "data": 15
+          },
+          "risk": "Normal",
+          "notes": "Full attribute catalogue with data profiling."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0005",
+      "programmeId": "PRG-0002",
+      "title": "Translation Management Source",
+      "shortTitle": "Translation source",
+      "systemArea": "pim",
+      "subArea": "Localisation",
+      "type": "system-change",
+      "startDate": "2026-11-01",
+      "endDate": "2027-01-31",
+      "targetDate": "2027-01-31",
+      "status": "idea",
+      "priority": "medium",
+      "businessOwner": "Sarah",
+      "productOwner": "Sarah",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Sarah",
+      "description": "Decide and implement where translations are mastered and how they are published.",
+      "businessOutcome": "Localised content without manual spreadsheet rounds.",
+      "problemStatement": "",
+      "scope": "Translation source, workflow, publication to commerce channels.",
+      "outOfScope": "Machine translation quality tooling.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "idea",
+      "milestones": [],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 5,
+            "dev": 10,
+            "int": 5,
+            "data": 0
+          },
+          "risk": "Spreadsheet-driven import.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 12,
+            "dev": 25,
+            "int": 10,
+            "data": 5
+          },
+          "risk": "Normal",
+          "notes": "Translation workflow inside the PIM."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0006",
+      "programmeId": "PRG-0002",
+      "title": "PIM Evaluation",
+      "shortTitle": "PIM evaluation",
+      "systemArea": "pim",
+      "subArea": "Tooling",
+      "type": "discovery",
+      "startDate": "2027-01-01",
+      "endDate": "2027-03-31",
+      "targetDate": "2027-03-31",
+      "status": "idea",
+      "priority": "medium",
+      "businessOwner": "Sarah",
+      "productOwner": "Sarah",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Sarah",
+      "description": "Evaluate PIM options against the agreed product data definition.",
+      "businessOutcome": "An evidence-based recommendation on PIM.",
+      "problemStatement": "",
+      "scope": "Requirements, vendor comparison, cost model, recommendation.",
+      "outOfScope": "Implementation.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "idea",
+      "milestones": [],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 10,
+            "dev": 0,
+            "int": 0,
+            "data": 3
+          },
+          "risk": "Desk-based comparison.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 20,
+            "dev": 5,
+            "int": 5,
+            "data": 8
+          },
+          "risk": "Normal",
+          "notes": "Includes a proof of concept with two vendors."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0007",
+      "programmeId": "PRG-0003",
+      "title": "NetSuite Sales Order Integration",
+      "shortTitle": "NetSuite orders",
+      "systemArea": "netsuite",
+      "subArea": "Order to cash",
+      "type": "integration",
+      "startDate": "2026-09-01",
+      "endDate": "2026-11-30",
+      "targetDate": "2026-11-30",
+      "status": "build",
+      "priority": "critical",
+      "businessOwner": "Jake",
+      "productOwner": "Jake",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Jake",
+      "description": "Post platform orders into NetSuite with entity, pricing and tax handling.",
+      "businessOutcome": "Orders reach finance without rekeying.",
+      "problemStatement": "",
+      "scope": "Order posting, acknowledgement, error handling and retry, entity mapping.",
+      "outOfScope": "Returns and credit notes.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "build",
+      "milestones": [
+        {
+          "id": "MS-0010",
+          "name": "Build",
+          "date": "2026-10-15",
+          "status": "build",
+          "notes": ""
+        },
+        {
+          "id": "MS-0011",
+          "name": "UAT",
+          "date": "2026-11-10",
+          "status": "idea",
+          "notes": ""
+        },
+        {
+          "id": "MS-0012",
+          "name": "Live",
+          "date": "2026-11-30",
+          "status": "idea",
+          "notes": ""
+        }
+      ],
+      "risks": [
+        {
+          "id": "RISK-0002",
+          "title": "Tax configuration per entity",
+          "description": "Tax treatment differs per entity and is not fully documented.",
+          "impact": "High",
+          "probability": "High",
+          "mitigation": "Finance workshop per entity before build completes.",
+          "owner": "Finance",
+          "status": "open"
+        }
+      ],
+      "tickets": [
+        {
+          "id": "TKT-0003",
+          "roadmapItemId": "RM-0007",
+          "title": "Order payload mapping",
+          "description": "",
+          "system": "netsuite",
+          "status": "build",
+          "owner": "Integration team",
+          "acceptanceCriteria": "",
+          "notes": "",
+          "externalReference": ""
+        }
+      ],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 5,
+            "dev": 20,
+            "int": 20,
+            "data": 0
+          },
+          "risk": "Single entity, minimal error handling.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 12,
+            "dev": 35,
+            "int": 35,
+            "data": 5
+          },
+          "risk": "Normal",
+          "notes": "Multi-entity with full reconciliation."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0008",
+      "programmeId": "PRG-0003",
+      "title": "NetSuite Stock Integration",
+      "shortTitle": "NetSuite stock",
+      "systemArea": "netsuite",
+      "subArea": "Inventory",
+      "type": "integration",
+      "startDate": "2026-10-15",
+      "endDate": "2026-12-15",
+      "targetDate": "2026-12-15",
+      "status": "definition",
+      "priority": "high",
+      "businessOwner": "Jake",
+      "productOwner": "Jake",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Jake",
+      "description": "Publish inventory from NetSuite to the platform on a reliable schedule.",
+      "businessOutcome": "Dealers see availability that reflects the warehouse.",
+      "problemStatement": "",
+      "scope": "Inventory feed, per-entity stock, availability calculation.",
+      "outOfScope": "Allocation and reservation logic.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "definition",
+      "milestones": [
+        {
+          "id": "MS-0013",
+          "name": "Build",
+          "date": "2026-11-20",
+          "status": "idea",
+          "notes": ""
+        },
+        {
+          "id": "MS-0014",
+          "name": "Live",
+          "date": "2026-12-15",
+          "status": "idea",
+          "notes": ""
+        }
+      ],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 4,
+            "dev": 12,
+            "int": 15,
+            "data": 3
+          },
+          "risk": "Scheduled file feed.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 10,
+            "dev": 25,
+            "int": 30,
+            "data": 10
+          },
+          "risk": "Normal",
+          "notes": "Event-driven inventory with reconciliation."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0009",
+      "programmeId": "PRG-0003",
+      "title": "USA Entity Rollout",
+      "shortTitle": "USA rollout",
+      "systemArea": "bpp",
+      "subArea": "Rollout",
+      "type": "rollout",
+      "startDate": "2026-12-01",
+      "endDate": "2027-02-28",
+      "targetDate": "2027-02-28",
+      "status": "ready",
+      "priority": "high",
+      "businessOwner": "Jake",
+      "productOwner": "Jake",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Jake",
+      "description": "Enable the USA entity on the platform with local pricing, tax and logistics.",
+      "businessOutcome": "USA dealers ordering through the same platform.",
+      "problemStatement": "",
+      "scope": "Entity configuration, pricing, tax, shipping, dealer onboarding.",
+      "outOfScope": "Local marketing site changes.",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "ready",
+      "milestones": [
+        {
+          "id": "MS-0015",
+          "name": "Pilot",
+          "date": "2027-01-20",
+          "status": "idea",
+          "notes": ""
+        },
+        {
+          "id": "MS-0016",
+          "name": "Rollout",
+          "date": "2027-02-28",
+          "status": "idea",
+          "notes": ""
+        }
+      ],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 8,
+            "dev": 10,
+            "int": 10,
+            "data": 2
+          },
+          "risk": "Pilot with a small dealer group.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 15,
+            "dev": 20,
+            "int": 20,
+            "data": 5
+          },
+          "risk": "Normal",
+          "notes": "Full onboarding programme."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0010",
+      "programmeId": "PRG-0003",
+      "title": "Singapore Rollout",
+      "shortTitle": "Singapore rollout",
+      "systemArea": "bpp",
+      "subArea": "Rollout",
+      "type": "rollout",
+      "startDate": "2027-03-01",
+      "endDate": "2027-05-31",
+      "targetDate": "2027-05-31",
+      "status": "idea",
+      "priority": "medium",
+      "businessOwner": "Jake",
+      "productOwner": "Jake",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Jake",
+      "description": "Enable the Singapore entity on the platform.",
+      "businessOutcome": "APAC dealers ordering through the same platform.",
+      "problemStatement": "",
+      "scope": "Entity configuration, localisation, dealer onboarding.",
+      "outOfScope": "",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "idea",
+      "milestones": [],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 6,
+            "dev": 8,
+            "int": 8,
+            "data": 2
+          },
+          "risk": "Reuse of the USA rollout pattern.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 12,
+            "dev": 16,
+            "int": 16,
+            "data": 4
+          },
+          "risk": "Normal",
+          "notes": "Full localisation review."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0011",
+      "programmeId": "PRG-0003",
+      "title": "Japan Rollout",
+      "shortTitle": "Japan rollout",
+      "systemArea": "bpp",
+      "subArea": "Rollout",
+      "type": "rollout",
+      "startDate": "2027-05-01",
+      "endDate": "2027-08-31",
+      "targetDate": "2027-08-31",
+      "status": "idea",
+      "priority": "medium",
+      "businessOwner": "Jake",
+      "productOwner": "Jake",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Jake",
+      "description": "Enable the Japan entity on the platform, including local language.",
+      "businessOutcome": "Japanese dealers ordering through the same platform.",
+      "problemStatement": "",
+      "scope": "Entity configuration, translation, dealer onboarding.",
+      "outOfScope": "",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "",
+      "currentPhase": "idea",
+      "milestones": [],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 8,
+            "dev": 10,
+            "int": 10,
+            "data": 3
+          },
+          "risk": "Reuse of the rollout pattern.",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 15,
+            "dev": 20,
+            "int": 20,
+            "data": 6
+          },
+          "risk": "Normal",
+          "notes": "Includes full translation workflow."
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    },
+    {
+      "id": "RM-0012",
+      "programmeId": "PRG-0004",
+      "title": "Cross-entity Stock Visibility",
+      "shortTitle": "Cross-entity stock",
+      "systemArea": "bpp",
+      "subArea": "Availability",
+      "type": "discovery",
+      "startDate": "",
+      "endDate": "",
+      "targetDate": "",
+      "status": "idea",
+      "priority": "medium",
+      "businessOwner": "Priya",
+      "productOwner": "Priya",
+      "technicalOwner": "",
+      "deliveryOwner": "",
+      "owner": "Priya",
+      "description": "Show availability across entities so a dealer can be served from another warehouse.",
+      "businessOutcome": "Fewer lost orders when local stock is unavailable.",
+      "problemStatement": "",
+      "scope": "To be defined.",
+      "outOfScope": "",
+      "assumptions": "",
+      "systemDependencies": "",
+      "businessDependencies": "",
+      "dataDependencies": "",
+      "recommendedApproach": "",
+      "tradeOffs": "",
+      "pocNotes": "",
+      "comments": "",
+      "notes": "To be defined - deliberately undated until discovery completes.",
+      "currentPhase": "idea",
+      "milestones": [],
+      "risks": [],
+      "tickets": [],
+      "gates": [],
+      "estimates": {
+        "fast": {
+          "days": {
+            "po": 0,
+            "dev": 0,
+            "int": 0,
+            "data": 0
+          },
+          "risk": "",
+          "notes": ""
+        },
+        "standard": {
+          "days": {
+            "po": 0,
+            "dev": 0,
+            "int": 0,
+            "data": 0
+          },
+          "risk": "",
+          "notes": ""
+        }
+      },
+      "backlogId": "",
+      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdBy": "Sample data",
+      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedBy": "Sample data"
+    }
+  ]
+}

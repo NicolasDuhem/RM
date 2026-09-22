@@ -1,0 +1,15 @@
+# Runtime output - the application creates these as it is used.
+RoadmapTool/backups/*
+!RoadmapTool/backups/.gitkeep
+RoadmapTool/exports/*
+!RoadmapTool/exports/.gitkeep
+RoadmapTool/logs/*
+!RoadmapTool/logs/.gitkeep
+
+# Never commit a half-written data file or a stale lock.
+RoadmapTool/data/*.tmp
+RoadmapTool/data/.write.lock
+
+node_modules/
+.DS_Store
+Thumbs.db
