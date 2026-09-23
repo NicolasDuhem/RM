@@ -978,14 +978,40 @@ window.RM = (function () {
     return item ? item.title : itemId;
   };
 
+  /**
+   * Options for every "who owns this" dropdown. The list is maintained in
+   * Settings; names already stored but no longer in the list are kept so
+   * nothing silently disappears from an old record.
+   */
+  RM.peopleOptions = function () {
+    const names = [];
+    const seen = new Set();
+    activeOptions('people').forEach(function (person) {
+      if (seen.has(person.name)) return;
+      seen.add(person.name);
+      names.push(person.name);
+    });
+    RM.ownersInUse().forEach(function (name) {
+      if (seen.has(name)) return;
+      seen.add(name);
+      names.push(name);
+    });
+    return names.map(function (name) { return { value: name, label: name }; });
+  };
+
   RM.ownersInUse = function () {
     const owners = new Set();
     RM.records('roadmapItems').forEach(function (item) {
       ['owner', 'businessOwner', 'productOwner', 'technicalOwner', 'deliveryOwner'].forEach(function (field) {
         if (item[field]) owners.add(item[field]);
       });
+      (item.tasks || []).forEach(function (task) { if (task.owner) owners.add(task.owner); });
+      (item.risks || []).forEach(function (risk) { if (risk.owner) owners.add(risk.owner); });
+      (item.gates || []).forEach(function (gate) { if (gate.owner) owners.add(gate.owner); });
     });
     RM.records('programmes').forEach(function (p) { if (p.owner) owners.add(p.owner); });
+    RM.records('backlog').forEach(function (b) { if (b.owner) owners.add(b.owner); });
+    RM.records('dependencies').forEach(function (d) { if (d.owner) owners.add(d.owner); });
     return Array.from(owners).sort(function (a, b) { return a.localeCompare(b); });
   };
 

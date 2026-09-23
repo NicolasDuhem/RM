@@ -71,7 +71,7 @@
 
     root.appendChild(RM.pageHeader(
       'Resources',
-      'Capacity is planned per stream and discipline, month by month. Demand comes from the effort on tasks.',
+      'Capacity is planned per stream and discipline, month by month. Demand comes from the effort on tasks, plus any backlog items this scenario carries.',
       [RM.button('+ New Scenario', function () { openScenarioForm(null); }, 'primary')]
     ));
 
@@ -212,11 +212,14 @@
       el('tbody', null, rows())
     ]);
 
+    const backlogDraft = (scenario.includedBacklogIds || []).slice();
+
     RM.append(wrapper, [
       el('p', 'muted small',
         'Capacity is entered in FTE. One FTE is ' + workingDays() + ' working days per month (Settings). ' +
         'Fill a row from the first month with the arrow button.'),
       el('div', 'table-wrap', table),
+      backlogPicker(backlogDraft),
       el('div', 'sticky-actions', [
         el('span', 'muted', 'Nothing is stored until you press Save.'),
         RM.button('Reload without saving', function () { RM.renderView(); }),
@@ -299,13 +302,74 @@
     }
 
     function save() {
-      RM.api.update('resourceScenarios', scenario.id, Object.assign({}, scenario, { allocations: draft }))
+      RM.api.update('resourceScenarios', scenario.id, Object.assign({}, scenario, {
+        allocations: draft,
+        includedBacklogIds: backlogDraft
+      }))
         .then(function () {
           RM.toast('Capacity plan saved.', 'success');
           return RM.refresh();
         })
         .catch(function (err) { RM.handleError(err, 'Could not save the capacity plan'); });
     }
+  }
+
+  /**
+   * Backlog items are not on the roadmap, but they still need people. Tick the
+   * ones this scenario should carry; they are costed from their own expected
+   * dates and effort.
+   */
+  function backlogPicker(selected) {
+    const candidates = RM.records('backlog').filter(function (record) { return !record.promoted; });
+    const body = el('div', 'panel-body');
+    const section = el('section', 'panel', [
+      el('h2', 'panel-title', 'Backlog included in this scenario'),
+      el('p', 'panel-description',
+        'A backlog item can be carried once it has expected dates and effort, which are entered on the Backlog screen.'),
+      body
+    ]);
+
+    if (!candidates.length) {
+      body.appendChild(el('p', 'muted', 'Nothing unscheduled in the backlog.'));
+      return section;
+    }
+
+    body.appendChild(el('div', 'backlog-picker', candidates.map(function (record) {
+      const plannable = RM.backlogView.isPlannable(record);
+      const box = el('input', { class: 'checkbox', type: 'checkbox', disabled: !plannable });
+      box.checked = selected.indexOf(record.id) >= 0;
+      box.addEventListener('change', function () {
+        const index = selected.indexOf(record.id);
+        if (box.checked && index < 0) selected.push(record.id);
+        if (!box.checked && index >= 0) selected.splice(index, 1);
+      });
+
+      return el('label', 'backlog-option' + (plannable ? '' : ' backlog-option-disabled'), [
+        box,
+        el('span', 'backlog-option-main', [
+          el('span', 'backlog-option-title', record.change),
+          el('span', 'backlog-option-meta', [
+            record.stream ? el('span', 'pill', RM.options.name('resourceStreams', record.stream)) : el('span', 'muted', 'No team'),
+            el('span', 'muted', record.startDate
+              ? RM.dates.formatDate(record.startDate) + ' \u2192 ' + RM.dates.formatDate(record.endDate)
+              : 'No dates'),
+            el('span', 'muted', RM.backlogView.effortTotal(record)
+              ? RM.effort.format(RM.backlogView.effortTotal(record)) + ' d'
+              : 'No effort')
+          ])
+        ]),
+        plannable
+          ? null
+          : el('button', {
+            class: 'link-button', type: 'button',
+            onclick: function (event) {
+              event.preventDefault();
+              RM.backlogView.openForm(record);
+            }
+          }, 'Add dates and effort')
+      ]);
+    })));
+    return section;
   }
 
   /* ---------------------------------------------------------------- */
@@ -316,12 +380,32 @@
    * Effort is spread evenly across the days of the system change the task
    * belongs to, then totalled per stream, discipline and month.
    */
-  function buildDemand(months) {
+  function buildDemand(months, scenario) {
     const resourceTypes = RM.effort.resourceTypes();
     const demand = {};
     const contributors = {};
     let undated = 0;
     let untasked = 0;
+    let backlogCount = 0;
+
+    /** Spreads one line of effort evenly across the days it runs for. */
+    function add(stream, days, label, start, end) {
+      const totalDays = RM.dates.daysBetween(start, end) + 1;
+      monthsBetween(start, end).forEach(function (month) {
+        if (months.indexOf(month.key) < 0) return;
+        const overlapDays = overlap(start, end, month.start, month.end);
+        if (overlapDays <= 0) return;
+        const share = overlapDays / totalDays;
+        resourceTypes.forEach(function (type) {
+          const value = (days[type.id] || 0) * share;
+          if (!value) return;
+          const key = stream + '|' + type.id + '|' + month.key;
+          demand[key] = (demand[key] || 0) + value;
+          if (!contributors[key]) contributors[key] = [];
+          if (contributors[key].indexOf(label) < 0) contributors[key].push(label);
+        });
+      });
+    }
 
     RM.records('roadmapItems').filter(RM.matchesFilters).forEach(function (item) {
       const start = RM.dates.parseIso(item.startDate);
@@ -332,34 +416,36 @@
         if (state.source !== 'tasks' || tasks.length) undated += 1;
         return;
       }
-      const totalDays = RM.dates.daysBetween(start, end) + 1;
 
       const lines = state.source === 'tasks'
         ? tasks.map(function (task) {
-          return { stream: RM.streamOf(item, task) || 'unassigned', days: RM.effort.ofTask(task), label: item.title + ' · ' + task.name };
+          return {
+            stream: RM.streamOf(item, task) || 'unassigned',
+            days: RM.effort.ofTask(task),
+            label: item.title + ' \u00b7 ' + task.name
+          };
         })
         : [{ stream: item.stream || 'unassigned', days: RM.effort.ofEstimate(item, state.source), label: item.title }];
 
-      monthsBetween(start, end).forEach(function (month) {
-        if (months.indexOf(month.key) < 0) return;
-        const overlapDays = overlap(start, end, month.start, month.end);
-        if (overlapDays <= 0) return;
-        const share = overlapDays / totalDays;
-
-        lines.forEach(function (line) {
-          resourceTypes.forEach(function (type) {
-            const value = (line.days[type.id] || 0) * share;
-            if (!value) return;
-            const key = line.stream + '|' + type.id + '|' + month.key;
-            demand[key] = (demand[key] || 0) + value;
-            if (!contributors[key]) contributors[key] = [];
-            if (contributors[key].indexOf(line.label) < 0) contributors[key].push(line.label);
-          });
-        });
-      });
+      lines.forEach(function (line) { add(line.stream, line.days, line.label, start, end); });
     });
 
-    return { demand: demand, contributors: contributors, undated: undated, untasked: untasked };
+    // Backlog items this scenario has been told to carry. They are not on the
+    // roadmap, so they are costed from their own expected dates and effort.
+    const included = (scenario && scenario.includedBacklogIds) || [];
+    RM.records('backlog').forEach(function (record) {
+      if (included.indexOf(record.id) < 0) return;
+      const start = RM.dates.parseIso(record.startDate);
+      const end = RM.dates.parseIso(record.endDate);
+      if (!start || !end || end < start) return;
+      backlogCount += 1;
+      add(record.stream || 'unassigned', record.days || {}, 'Backlog: ' + record.change, start, end);
+    });
+
+    return {
+      demand: demand, contributors: contributors,
+      undated: undated, untasked: untasked, backlogCount: backlogCount
+    };
   }
 
   function monthsBetween(start, end) {
@@ -384,7 +470,7 @@
   function demandView(scenario) {
     const months = monthWindow();
     const resourceTypes = RM.effort.resourceTypes();
-    const model = buildDemand(months);
+    const model = buildDemand(months, scenario);
     const streamList = streams();
 
     const sourceSwitch = el('div', 'segmented', [
@@ -403,6 +489,9 @@
       model.untasked && state.source === 'tasks'
         ? el('div', 'callout callout-info', model.untasked + ' system change(s) have no tasks yet, so they add nothing to demand. Switch source to an estimate to include them.')
         : null,
+      el('p', 'muted small', model.backlogCount
+        ? model.backlogCount + ' backlog item(s) are carried by this scenario and counted below. Change the selection on the Capacity plan tab.'
+        : 'No backlog items are carried by this scenario. Pick them on the Capacity plan tab.'),
       el('div', 'table-wrap', el('table', 'table table-matrix', [
         el('thead', null, el('tr', null, [el('th', 'sticky-col', 'Stream / discipline')]
           .concat(months.map(function (month) { return el('th', 'numeric', monthLabel(month)); })))),

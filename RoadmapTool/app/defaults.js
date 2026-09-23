@@ -69,6 +69,12 @@ function defaultSettings() {
       { id: 'int', name: 'Integration', active: true },
       { id: 'data', name: 'Data Engineering', active: true }
     ],
+    /* Everybody who can be picked as an owner. Owner fields store the name,
+       so a name typed before this list existed still shows. */
+    people: list([
+      'Nicolas', 'Sarah', 'Jake', 'Priya', 'Commercial', 'Finance', 'Operations',
+      'Data team', 'Integration team'
+    ]),
     /* Resource hierarchy, level 2: the stream the capacity sits in. */
     resourceStreams: list(['B2B', 'D2C', 'NetSuite / ERP', 'CSI', 'Data & Platform', 'Shared']),
     /* OKRs: objectives (level 1) with key results (level 2). */
@@ -397,13 +403,15 @@ function sampleData() {
   const backlog = [
     backlogItem('BLG-0001', 'PRG-0004', 'bpp', 'Operations', 'Quick Ship proposition', 'discovery', 'idea',
       'Needs cross-entity stock visibility', 'NetSuite, BigCommerce', 'Order management', 'Priya', 'medium',
-      'To be defined - proposition not agreed yet.'),
+      'To be defined - proposition not agreed yet.', '', '', '', {}),
     backlogItem('BLG-0002', 'PRG-0002', 'bigcommerce', 'Product', 'BigCommerce metafield changes', 'system-change', 'idea',
-      'Product data definition', 'PIM', 'Content publishing', 'Sarah', 'medium', ''),
+      'Product data definition', 'PIM', 'Content publishing', 'Sarah', 'medium', '',
+      '2027-02-01', '2027-04-30', 'd2c', { po: 4, dev: 12, int: 4, data: 2 }),
     backlogItem('BLG-0003', 'PRG-0001', 'csi', 'Service', 'Dealer self-service accreditation view', 'system-change', 'idea',
-      'Accreditation matrix', 'Salesforce', 'Dealer support', 'Nicolas', 'low', ''),
+      'Accreditation matrix', 'Salesforce', 'Dealer support', 'Nicolas', 'low', '',
+      '2027-03-01', '2027-05-31', 'csi', { po: 3, dev: 10, int: 2, data: 0 }),
     backlogItem('BLG-0004', '', 'finance', 'Finance', 'Automated dealer credit checks', 'process-change', 'idea',
-      'NetSuite customer master', 'NetSuite, Salesforce', 'Credit control', 'Finance', 'low', '')
+      'NetSuite customer master', 'NetSuite, Salesforce', 'Credit control', 'Finance', 'low', '', '', '', '', {})
   ];
 
   const resourceScenarios = [
@@ -517,12 +525,15 @@ function sampleData() {
     return { id: id, fromItemId: fromItemId, toItemId: toItemId, dependencyType: dependencyType, description: description, status: status, owner: owner, blocking: blocking, notes: '' };
   }
 
-  function backlogItem(id, programme, systemArea, subAreaDepartment, change, type, currentStatus, dependencyPrerequisite, otherSystemsImpacted, processesImpacted, owner, priority, comment) {
+  function backlogItem(id, programme, systemArea, subAreaDepartment, change, type, currentStatus,
+    dependencyPrerequisite, otherSystemsImpacted, processesImpacted, owner, priority, comment,
+    startDate, endDate, stream, days) {
     return Object.assign({
       id: id, programme: programme, systemArea: systemArea, subAreaDepartment: subAreaDepartment,
       change: change, type: type, currentStatus: currentStatus,
       dependencyPrerequisite: dependencyPrerequisite, otherSystemsImpacted: otherSystemsImpacted,
       processesImpacted: processesImpacted, owner: owner, priority: priority, comment: comment,
+      startDate: startDate || '', endDate: endDate || '', stream: stream || '', days: days || {},
       promoted: false, roadmapItemId: ''
     }, stamp);
   }
@@ -543,7 +554,11 @@ function sampleData() {
         allocations[streamId][typeId] = monthly;
       });
     });
-    return Object.assign({ id: id, name: name, description: description, active: active, allocations: allocations }, stamp);
+    return Object.assign({
+      id: id, name: name, description: description, active: active,
+      allocations: allocations,
+      includedBacklogIds: id === 'SCN-0001' ? ['BLG-0002'] : []
+    }, stamp);
   }
 
   function monthRange(startMonth, count) {

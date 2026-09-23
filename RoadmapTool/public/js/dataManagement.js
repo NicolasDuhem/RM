@@ -46,9 +46,17 @@
       ]),
 
       panel('Import', 'Imports are validated in full before anything is written. If a row is wrong, nothing is imported.', [
+        importAdditionsControl(),
+        el('hr', 'panel-rule'),
         importJsonControl(),
         importCsvControl()
       ]),
+
+      panel('Drafting outside the tool',
+        'The JSON guide describes the format, and lists the statuses, systems, streams, people and OKRs this roadmap actually uses. Hand it to a colleague or to a chat assistant to draft programmes, system changes and tasks, then add the result with "Add to the roadmap".', [
+          RM.button('Download the JSON guide', function () { download('/api/export/guide'); }, 'primary'),
+          el('p', 'muted small', 'It is generated from your current settings, so download it again after changing a list.')
+        ]),
 
       panel('Sample data', 'The sample roadmap shows how the tool is meant to be used. Removing it does not remove the application.', [
         RM.button('Load sample roadmap', function () { applySample('sample'); }),
@@ -108,6 +116,56 @@
     RM.toast('Export written to the exports folder and downloaded.', 'success');
   }
 
+  /**
+   * Adds programmes, system changes and tasks from a file without replacing
+   * anything. This is the counterpart to the JSON guide.
+   */
+  function importAdditionsControl() {
+    const input = el('input', { type: 'file', accept: '.json,application/json', class: 'file-input' });
+    input.addEventListener('change', function () {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      readFile(file).then(function (text) {
+        let bundle;
+        try {
+          bundle = JSON.parse(text);
+        } catch (err) {
+          RM.toast('That file is not valid JSON.', 'error');
+          return;
+        }
+        const programmes = (bundle.programmes || []).length;
+        const items = (bundle.roadmapItems || []).length;
+        RM.confirm({
+          title: 'Add to the roadmap',
+          message: 'Add ' + programmes + ' programme(s) and ' + items + ' system change(s) from "' + file.name + '"?',
+          detail: 'Nothing already on the roadmap is changed or replaced. Ids are assigned here, and a programme whose name already exists is reused rather than duplicated.',
+          confirmLabel: 'Add to the roadmap'
+        }).then(function (ok) {
+          if (!ok) return;
+          RM.api.post('/api/import/add', { bundle: bundle, editor: RM.editorName() }).then(function (result) {
+            RM.toast('Added ' + result.roadmapItems + ' system change(s) and ' + result.tasks + ' task(s).', 'success');
+            if (result.warnings && result.warnings.length) showWarnings(result);
+            return RM.refresh();
+          }).catch(function (err) { RM.handleError(err, 'Could not add to the roadmap'); });
+        });
+      });
+      input.value = '';
+    });
+    return el('label', 'file-picker file-picker-primary', [el('span', null, 'Add to the roadmap (JSON)'), input]);
+  }
+
+  function showWarnings(result) {
+    const handle = RM.modal({
+      title: 'Added, with some values to check',
+      size: 'small',
+      body: el('div', 'stack', [
+        el('p', 'lede', 'The records were added. These values were not recognised and will show as "not in settings" until somebody corrects them:'),
+        el('ul', 'error-list', result.warnings.map(function (message) { return el('li', null, message); }))
+      ]),
+      footer: [RM.button('Close', function () { handle.close(); }, 'primary')]
+    });
+  }
+
   function importJsonControl() {
     const input = el('input', { type: 'file', accept: '.json,application/json', class: 'file-input' });
     input.addEventListener('change', function () {
@@ -137,7 +195,7 @@
       });
       input.value = '';
     });
-    return el('label', 'file-picker', [el('span', null, 'Import Complete JSON Backup'), input]);
+    return el('label', 'file-picker', [el('span', null, 'Replace everything from a JSON backup'), input]);
   }
 
   function importCsvControl() {
@@ -291,6 +349,10 @@
   /* ================================================================ */
 
   const LISTS = [
+    {
+      name: 'people', label: 'People', colour: false,
+      description: 'Everybody who can be picked as an owner. Owner fields store the name, so a name entered before this list existed still shows on its record.'
+    },
     { name: 'systems', label: 'Systems', colour: false },
     { name: 'itemTypes', label: 'Types', colour: false },
     { name: 'statuses', label: 'Statuses', colour: true },

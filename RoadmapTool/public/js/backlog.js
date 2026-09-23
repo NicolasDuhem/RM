@@ -11,7 +11,7 @@
   function render(root) {
     root.appendChild(RM.pageHeader(
       'Master Backlog',
-      'Date-free requirements waiting to be scheduled. Promote one to put it on the roadmap.',
+      'Requirements that are not on the roadmap yet. Promote one to schedule it, or give it expected dates and effort so a resource scenario can carry it.',
       [RM.button('+ New Backlog Item', function () { openForm(null); }, 'primary')]
     ));
 
@@ -20,7 +20,7 @@
       select('system', 'System', RM.options.active('systems').map(opt)),
       select('status', 'Status', RM.options.active('statuses').map(opt)),
       select('priority', 'Priority', RM.options.active('priorities').map(opt)),
-      select('owner', 'Owner', RM.ownersInUse().map(function (o) { return { value: o, label: o }; })),
+      select('owner', 'Owner', RM.peopleOptions()),
       select('promoted', 'Show', [
         { value: 'open', label: 'Not yet promoted' },
         { value: 'promoted', label: 'Promoted only' },
@@ -31,7 +31,7 @@
     const rows = filtered();
     if (RM.records('backlog').length === 0) {
       root.appendChild(RM.emptyState('The backlog is empty',
-        'Capture changes you know about but cannot schedule yet. They stay here until you promote them.',
+        'Capture changes you know about but cannot schedule yet. They stay here until you promote them, and can still be costed in a resource scenario.',
         RM.button('+ New Backlog Item', function () { openForm(null); }, 'primary')));
       return;
     }
@@ -44,7 +44,8 @@
       el('thead', null, el('tr', null, [
         el('th', null, 'Id'), el('th', null, 'Change'), el('th', null, 'Programme'), el('th', null, 'System'),
         el('th', null, 'Sub area / Dept'), el('th', null, 'Type'), el('th', null, 'Status'), el('th', null, 'Priority'),
-        el('th', null, 'Owner'), el('th', null, 'Dependency / Prerequisite'), el('th', null, '')
+        el('th', null, 'Owner'), el('th', null, 'Team'), el('th', null, 'Dates'), el('th', 'numeric', 'Effort'),
+        el('th', null, '')
       ])),
       el('tbody', null, rows.map(function (record) {
         const programme = RM.programmeById(record.programme);
@@ -58,7 +59,15 @@
           el('td', null, RM.statusBadge(record.currentStatus)),
           el('td', null, RM.priorityBadge(record.priority) || ''),
           el('td', null, record.owner || ''),
-          el('td', null, record.dependencyPrerequisite || ''),
+          el('td', null, record.stream
+            ? el('span', 'pill', RM.options.name('resourceStreams', record.stream))
+            : el('span', 'muted', '-')),
+          el('td', null, record.startDate || record.endDate
+            ? el('span', 'small', RM.dates.formatDate(record.startDate) + ' \u2192 ' + RM.dates.formatDate(record.endDate))
+            : el('span', 'muted', 'No dates')),
+          el('td', 'numeric', effortTotal(record)
+            ? el('span', { title: effortDetail(record) }, RM.effort.format(effortTotal(record)) + ' d')
+            : el('span', 'muted', '-')),
           el('td', 'row-actions', [
             record.promoted
               ? el('span', 'pill pill-success', 'On roadmap')
@@ -97,6 +106,21 @@
     }
   }
 
+  function effortTotal(record) {
+    return RM.effort.total(record.days || {});
+  }
+
+  function effortDetail(record) {
+    return RM.effort.resourceTypes().map(function (type) {
+      return type.name + ': ' + RM.effort.format((record.days || {})[type.id] || 0);
+    }).join('\n');
+  }
+
+  /** A backlog item only counts in a scenario once it has dates and effort. */
+  function isPlannable(record) {
+    return !!(record.startDate && record.endDate && effortTotal(record) > 0);
+  }
+
   function filtered() {
     const term = state.search.toLowerCase();
     return RM.records('backlog').filter(function (record) {
@@ -119,6 +143,7 @@
   }
 
   function fields() {
+    const resourceTypes = RM.effort.resourceTypes();
     return [
       { name: 'change', label: 'Change', required: true, full: true },
       {
@@ -131,12 +156,23 @@
       { name: 'type', label: 'Type', type: 'select', options: RM.selectOptions('itemTypes') },
       { name: 'currentStatus', label: 'Current status', type: 'select', options: RM.selectOptions('statuses') },
       { name: 'priority', label: 'Priority', type: 'select', options: RM.selectOptions('priorities') },
-      { name: 'owner', label: 'Owner' },
+      { name: 'owner', label: 'Owner', type: 'select', options: RM.peopleOptions, emptyLabel: '- nobody yet -' },
+      { type: 'section', label: 'Planning (optional - for resource scenarios)' },
+      { name: 'startDate', label: 'Expected start', type: 'date', hint: 'Only needed to include this item in a resource scenario.' },
+      { name: 'endDate', label: 'Expected end', type: 'date' },
+      {
+        name: 'stream', label: 'Team / resource stream', type: 'select',
+        options: RM.selectOptions('resourceStreams'), emptyLabel: '- not decided -'
+      }
+    ].concat(resourceTypes.map(function (type) {
+      return { name: 'days.' + type.id, label: type.name + ' days', type: 'number', min: 0, step: '0.5' };
+    })).concat([
+      { type: 'section', label: 'Detail' },
       { name: 'dependencyPrerequisite', label: 'Dependency / prerequisite', type: 'textarea', full: true, rows: 2 },
       { name: 'otherSystemsImpacted', label: 'Other systems impacted', type: 'textarea', full: true, rows: 2 },
       { name: 'processesImpacted', label: 'Processes impacted', type: 'textarea', full: true, rows: 2 },
       { name: 'comment', label: 'Comment', type: 'textarea', full: true, rows: 3 }
-    ];
+    ]);
   }
 
   function openForm(record) {
@@ -144,7 +180,7 @@
     const form = RM.form(fields(), record || { currentStatus: 'idea', priority: 'medium' });
     const handle = RM.modal({
       title: isNew ? 'New backlog item' : 'Edit backlog item',
-      subtitle: 'Backlog items have no dates. Add dates when you promote the item onto the roadmap.',
+      subtitle: 'Dates and effort are optional here - they let a resource scenario account for this item before it reaches the roadmap.',
       size: 'large',
       dismissible: false,
       body: form.element,
@@ -184,8 +220,20 @@
           RM.definition('Current status', RM.options.name('statuses', record.currentStatus)),
           RM.definition('Priority', RM.options.name('priorities', record.priority)),
           RM.definition('Owner', record.owner),
+          RM.definition('Team / resource stream', RM.options.name('resourceStreams', record.stream)),
+          RM.definition('Expected start', RM.dates.formatDate(record.startDate)),
+          RM.definition('Expected end', RM.dates.formatDate(record.endDate)),
+          RM.definition('Estimated effort', effortTotal(record) ? RM.effort.format(effortTotal(record)) + ' days' : ''),
           RM.definition('On roadmap', promotedItem ? promotedItem.title : 'Not promoted yet')
         ]),
+        effortTotal(record) ? RM.editor.section('Effort by resource', el('div', 'chip-list',
+          RM.effort.resourceTypes().map(function (type) {
+            const days = (record.days || {})[type.id] || 0;
+            return days ? el('span', 'pill', type.name + ': ' + RM.effort.format(days) + ' d') : null;
+          }))) : null,
+        isPlannable(record)
+          ? el('div', 'callout callout-info', 'This item can be included in a resource scenario from the Resources screen.')
+          : el('p', 'muted small', 'Add expected dates and effort to be able to include this item in a resource scenario.'),
         RM.editor.section('Dependency / prerequisite', RM.textBlock(record.dependencyPrerequisite)),
         RM.editor.section('Other systems impacted', RM.textBlock(record.otherSystemsImpacted)),
         RM.editor.section('Processes impacted', RM.textBlock(record.processesImpacted)),
@@ -221,13 +269,15 @@
       { name: 'endDate', label: 'End date', type: 'date' },
       { name: 'status', label: 'Status', type: 'select', options: RM.selectOptions('statuses') },
       { name: 'priority', label: 'Priority', type: 'select', options: RM.selectOptions('priorities') },
-      { name: 'owner', label: 'Owner' }
+      { name: 'owner', label: 'Owner', type: 'select', options: RM.peopleOptions, emptyLabel: '- nobody yet -' }
     ], {
       programmeId: record.programme || '',
       title: record.change,
       status: record.currentStatus || 'ready',
       priority: record.priority || 'medium',
-      owner: record.owner || ''
+      owner: record.owner || '',
+      startDate: record.startDate || '',
+      endDate: record.endDate || ''
     });
 
     const dependencyNote = record.dependencyPrerequisite
@@ -263,7 +313,8 @@
           status: values.status,
           priority: values.priority,
           owner: values.owner,
-          productOwner: values.owner
+          productOwner: values.owner,
+          stream: record.stream || ''
         }
       };
       RM.api.promoteBacklog(payload).then(function (response) {
@@ -296,5 +347,8 @@
   }
 
   RM.registerView('backlog', render);
-  RM.backlogView = { render: render, openForm: openForm };
+  RM.backlogView = {
+    render: render, openForm: openForm,
+    effortTotal: effortTotal, effortDetail: effortDetail, isPlannable: isPlannable
+  };
 }(window.RM));

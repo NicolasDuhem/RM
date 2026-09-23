@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T04:55:03.814Z",
+  "updatedAt": "2026-09-23T05:33:18.958Z",
   "records": [
     {
       "id": "BLG-0001",
@@ -16,11 +16,15 @@
       "owner": "Priya",
       "priority": "medium",
       "comment": "To be defined - proposition not agreed yet.",
+      "startDate": "",
+      "endDate": "",
+      "stream": "",
+      "days": {},
       "promoted": false,
       "roadmapItemId": "",
-      "createdAt": "2026-09-23T04:55:03.810Z",
+      "createdAt": "2026-09-23T05:33:18.953Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T04:55:03.810Z",
+      "updatedAt": "2026-09-23T05:33:18.953Z",
       "updatedBy": "Sample data"
     },
     {
@@ -37,11 +41,20 @@
       "owner": "Sarah",
       "priority": "medium",
       "comment": "",
+      "startDate": "2027-02-01",
+      "endDate": "2027-04-30",
+      "stream": "d2c",
+      "days": {
+        "po": 4,
+        "dev": 12,
+        "int": 4,
+        "data": 2
+      },
       "promoted": false,
       "roadmapItemId": "",
-      "createdAt": "2026-09-23T04:55:03.810Z",
+      "createdAt": "2026-09-23T05:33:18.953Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T04:55:03.810Z",
+      "updatedAt": "2026-09-23T05:33:18.953Z",
       "updatedBy": "Sample data"
     },
     {
@@ -58,11 +71,20 @@
       "owner": "Nicolas",
       "priority": "low",
       "comment": "",
+      "startDate": "2027-03-01",
+      "endDate": "2027-05-31",
+      "stream": "csi",
+      "days": {
+        "po": 3,
+        "dev": 10,
+        "int": 2,
+        "data": 0
+      },
       "promoted": false,
       "roadmapItemId": "",
-      "createdAt": "2026-09-23T04:55:03.810Z",
+      "createdAt": "2026-09-23T05:33:18.953Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T04:55:03.810Z",
+      "updatedAt": "2026-09-23T05:33:18.953Z",
       "updatedBy": "Sample data"
     },
     {
@@ -79,11 +101,15 @@
       "owner": "Finance",
       "priority": "low",
       "comment": "",
+      "startDate": "",
+      "endDate": "",
+      "stream": "",
+      "days": {},
       "promoted": false,
       "roadmapItemId": "",
-      "createdAt": "2026-09-23T04:55:03.810Z",
+      "createdAt": "2026-09-23T05:33:18.953Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T04:55:03.810Z",
+      "updatedAt": "2026-09-23T05:33:18.953Z",
       "updatedBy": "Sample data"
     }
   ]

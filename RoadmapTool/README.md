@@ -71,6 +71,7 @@ The new port applies the next time the server starts.
 | `public/`    | The browser application (HTML, CSS, JavaScript).                      |
 | `logs/`      | Technical log for troubleshooting. Users never see stack traces.      |
 | `tests/`     | Automated tests.                                                      |
+| `docs/`      | A snapshot of the JSON guide for drafting work outside the tool.      |
 
 The data files are:
 
@@ -78,7 +79,7 @@ The data files are:
 data/programmes.json          Programmes / business subjects
 data/roadmap-items.json       System changes, with their tasks, risks and milestones
 data/dependencies.json        Links between system changes
-data/backlog.json             Date-free master backlog
+data/backlog.json             Master backlog, with optional dates and effort
 data/resource-scenarios.json  Monthly capacity plans, per stream and discipline
 data/settings.json            Systems, statuses, priorities, streams, OKRs, quarters, port, ...
 data/audit.json               Lightweight change history
@@ -141,10 +142,10 @@ to see its tasks.
 |------------------|-------------------------------------------------------------------------|
 | **Roadmap**      | The Gantt. Executive View (programmes only) or Detailed View (everything, down to tasks). |
 | **Dependencies** | The dependency register (table) and the dependency map (diagram).        |
-| **Backlog**      | Date-free requirements, and *Move to Roadmap* when they are ready.       |
+| **Backlog**      | Requirements not yet on the roadmap, and *Move to Roadmap* when they are ready. |
 | **Resources**    | The monthly capacity plan, and demand against it.                        |
 | **Data**         | Backup, export, import, restore, and the change history.                 |
-| **Settings**     | Systems, statuses, priorities, streams, OKRs, quarters, port and more. Password protected. |
+| **Settings**     | People, systems, statuses, priorities, streams, OKRs, quarters, port and more. Password protected. |
 
 Click any bar or title on the roadmap to open the record panel: summary, tasks,
 dependencies, risks and decisions, delivery (Fast MVP versus Standard), the
@@ -159,10 +160,39 @@ until you press Save.
 A system change can belong to several **systems** and be of several **types**;
 both are multi-select.
 
+Every owner field - programme owner, the four owners on a system change, and
+the owner of a task, risk, gate or dependency - is a dropdown of the **people**
+maintained in Settings. The name itself is what gets stored, so anybody named
+before that list existed still shows on their record.
+
 Dragging a bar (or its edges) changes the start and end dates. It goes through
 exactly the same save as the panel, so it gets the same protection.
 
 ---
+
+## Drafting work outside the tool
+
+Not everybody wants to type into the roadmap. **Data -> Download the JSON
+guide** produces a Markdown file describing the JSON this tool accepts,
+including the statuses, systems, streams, people and OKRs *your* roadmap
+actually uses. Hand it to a colleague, or paste it into a chat assistant, and
+ask for programmes, system changes and tasks in that format.
+
+The guide is explicit that only those three things may be created: it must not
+invent statuses, systems, streams, OKRs or people, and where nothing in the
+lists fits it leaves the field empty - but it always fills in the days a task
+needs, so the work can be costed and somebody can assign the team later.
+
+Bring the result in with **Data -> Add to the roadmap (JSON)**. That import is
+additive: it adds what is in the file and changes nothing that is already
+there. Ids are assigned by the tool, and a programme whose name already exists
+is reused rather than duplicated, so two people can draft into the same
+programme. If anything is wrong, nothing at all is imported and the problems
+are listed. Values that are not in Settings do not block the import but are
+reported back so they can be corrected.
+
+A snapshot of the guide is in [`docs/roadmap-json-guide.md`](docs/roadmap-json-guide.md),
+but download a fresh one whenever you change a list in Settings.
 
 ## Resources: capacity and demand
 
@@ -188,6 +218,11 @@ task has none, the stream on the system change). Every cell shows
 The demand source can be switched between the task plan and the Fast MVP or
 Standard estimates, so you can see the difference between the plan and either
 sizing. Nothing here moves a date - it is decision support only.
+
+**Backlog items can be carried too.** Give a backlog item expected dates, a
+team and an effort estimate on the Backlog screen, then tick it on the Capacity
+plan tab. Each scenario carries its own selection, so you can ask "what if we
+also take this on?" without touching the roadmap.
 
 One FTE is 21 working days per month by default; change that in Settings.
 
@@ -277,9 +312,9 @@ node tests/run-tests.js
 ```
 
 This runs the API and data-safety tests (ids, validation, conflict protection,
-cascade delete, backlog promotion, tasks and their effort, monthly capacity,
-the settings password, CSV round trip, backup and restore, corrupt file
-handling). It works on a throwaway copy of the application in the system temp
+cascade delete, backlog promotion and planning, tasks and their effort, monthly
+capacity, the settings password, the JSON guide and the additive import, CSV
+round trip, backup and restore, corrupt file handling). It works on a throwaway copy of the application in the system temp
 folder and never touches your `data/` folder.
 
 `tests/browser-tests.js` additionally drives the real user interface. It is

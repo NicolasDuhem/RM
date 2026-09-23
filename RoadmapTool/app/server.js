@@ -18,6 +18,7 @@ const backup = require('./backup');
 const validation = require('./validation');
 const csv = require('./csv');
 const csvSchema = require('./csvSchema');
+const guide = require('./guide');
 const defaults = require('./defaults');
 
 const ROOT = store.paths().root;
@@ -674,6 +675,217 @@ function importBundle(body) {
   return { revisions: revisions };
 }
 
+/**
+ * Additive import: adds programmes, system changes and tasks drafted outside
+ * the tool without touching anything already on the roadmap.
+ *
+ * Ids are always assigned here, so a file written by hand (or by a chat
+ * assistant following the JSON guide) never has to invent one. A programme
+ * whose name already exists is reused rather than duplicated.
+ */
+function importAdditions(body) {
+  const bundle = body.bundle;
+  if (!bundle || typeof bundle !== 'object') throw badRequest('No content was supplied.');
+  const editor = validation.trimmed(body.editor) || 'Unknown';
+
+  const incomingProgrammes = Array.isArray(bundle.programmes) ? bundle.programmes : [];
+  const incomingItems = Array.isArray(bundle.roadmapItems) ? bundle.roadmapItems : [];
+  if (!incomingProgrammes.length && !incomingItems.length) {
+    throw badRequest('That file contained no programmes and no system changes.');
+  }
+
+  const errors = [];
+  const createdProgrammes = [];
+  const createdItems = [];
+
+  const revisions = store.saveMany([
+    {
+      dataset: 'programmes',
+      expectedRevision: null,
+      mutate: function (records) {
+        const next = records.slice();
+        incomingProgrammes.forEach(function (input, index) {
+          const draft = Object.assign({}, input);
+          delete draft.id;
+          const name = validation.trimmed(draft.name);
+          if (!name) {
+            errors.push({ field: 'programmes', message: 'Programme ' + (index + 1) + ' has no name.' });
+            return;
+          }
+          const existing = next.find(function (programme) {
+            return programme.name.toLowerCase() === name.toLowerCase();
+          });
+          if (existing) return; // reuse it rather than create a second one
+          draft.id = store.nextIdFor('programmes', next);
+          const checked = validation.validateProgramme(draft, { siblings: next, editor: editor });
+          checked.errors.forEach(function (error) {
+            errors.push({ field: 'programmes', message: 'Programme "' + name + '": ' + error.message });
+          });
+          next.push(checked.record);
+          createdProgrammes.push(checked.record);
+        });
+        return next;
+      }
+    },
+    {
+      dataset: 'roadmapItems',
+      expectedRevision: null,
+      mutate: function (records) {
+        const programmes = store.records('programmes').concat(createdProgrammes);
+        const next = records.slice();
+        const childCounters = nestedIdCounters(next);
+
+        incomingItems.forEach(function (input, index) {
+          const draft = Object.assign({}, input);
+          delete draft.id;
+          const label = validation.trimmed(draft.title) || 'System change ' + (index + 1);
+          const programme = resolveProgramme(programmes, draft);
+          if (!programme) {
+            errors.push({
+              field: 'roadmapItems',
+              message: '"' + label + '" does not name a programme that exists in this file or on the roadmap.'
+            });
+            return;
+          }
+          draft.programmeId = programme.id;
+          delete draft.programme;
+          draft.id = store.nextIdFor('roadmapItems', next);
+
+          ['milestones', 'risks', 'gates', 'tasks'].forEach(function (collection) {
+            const prefix = { milestones: 'MS', risks: 'RISK', gates: 'GAT', tasks: 'TSK' }[collection];
+            const incoming = Array.isArray(draft[collection]) ? draft[collection] : [];
+            draft[collection] = incoming.map(function (child) {
+              const copy = Object.assign({}, child);
+              childCounters[prefix] += 1;
+              copy.id = prefix + '-' + String(childCounters[prefix]).padStart(4, '0');
+              if (collection === 'tasks') copy.roadmapItemId = draft.id;
+              return copy;
+            });
+          });
+
+          const checked = validation.validateRoadmapItem(draft, {
+            siblings: next, programmes: programmes, editor: editor
+          });
+          checked.errors.forEach(function (error) {
+            errors.push({ field: 'roadmapItems', message: '"' + label + '": ' + error.message });
+          });
+          next.push(checked.record);
+          createdItems.push(checked.record);
+        });
+
+        if (errors.length) throw validationError(errors);
+        return next;
+      }
+    }
+  ]);
+
+  const warnings = unknownValueWarnings(createdProgrammes, createdItems);
+
+  createdProgrammes.forEach(function (programme) { auditChange('Created', 'programmes', programme, null, editor); });
+  createdItems.forEach(function (item) { auditChange('Created', 'roadmapItems', item, null, editor); });
+  recordAudit({
+    editor: editor,
+    action: 'Imported',
+    recordType: 'Roadmap additions',
+    dataset: 'all',
+    recordId: '',
+    recordName: createdProgrammes.length + ' programme(s), ' + createdItems.length + ' system change(s)',
+    changes: [],
+    note: 'Added to the roadmap from a JSON file. Nothing existing was replaced.'
+  });
+
+  return {
+    revisions: revisions,
+    programmes: createdProgrammes.length,
+    roadmapItems: createdItems.length,
+    tasks: createdItems.reduce(function (total, item) { return total + (item.tasks || []).length; }, 0),
+    reusedProgrammes: incomingProgrammes.length - createdProgrammes.length,
+    warnings: warnings
+  };
+}
+
+/**
+ * The import accepts a value that is not in Settings rather than refusing the
+ * whole file, but it says so: a status or stream nobody recognises is almost
+ * always a mistake in the file.
+ */
+function unknownValueWarnings(programmes, items) {
+  const settings = store.records('settings');
+  const warnings = [];
+  const seen = new Set();
+
+  function known(listName, id) {
+    if (!id) return true;
+    const list = Array.isArray(settings[listName]) ? settings[listName] : [];
+    return list.some(function (entry) { return entry.id === id; });
+  }
+
+  function note(listName, id, where) {
+    const key = listName + '|' + id;
+    if (!id || known(listName, id) || seen.has(key)) return;
+    seen.add(key);
+    warnings.push(where + ' "' + id + '" is not in Settings, so it will show as unknown.');
+  }
+
+  programmes.forEach(function (programme) {
+    note('statuses', programme.status, 'Status');
+    note('priorities', programme.priority, 'Priority');
+  });
+
+  items.forEach(function (item) {
+    note('statuses', item.status, 'Status');
+    note('priorities', item.priority, 'Priority');
+    note('resourceStreams', item.stream, 'Resource stream');
+    note('milestoneTypes', item.currentPhase, 'Phase');
+    (item.systemAreas || []).forEach(function (id) { note('systems', id, 'System'); });
+    (item.types || []).forEach(function (id) { note('itemTypes', id, 'Type'); });
+    (item.tasks || []).forEach(function (task) {
+      note('statuses', task.status, 'Task status');
+      note('resourceStreams', task.stream, 'Task resource stream');
+      (task.okrIds || []).forEach(function (id) {
+        const objectives = Array.isArray(settings.okrs) ? settings.okrs : [];
+        const found = objectives.some(function (objective) {
+          return objective.id === id || (objective.children || []).some(function (child) { return child.id === id; });
+        });
+        const key = 'okr|' + id;
+        if (found || seen.has(key)) return;
+        seen.add(key);
+        warnings.push('OKR "' + id + '" is not in Settings, so it will show as unknown.');
+      });
+    });
+  });
+
+  return warnings;
+}
+
+/** Accepts a programme by id, or by name (so files can stay readable). */
+function resolveProgramme(programmes, draft) {
+  const byId = validation.trimmed(draft.programmeId);
+  if (byId) {
+    const match = programmes.find(function (programme) { return programme.id === byId; });
+    if (match) return match;
+  }
+  const reference = validation.trimmed(draft.programme || draft.programmeName || draft.programmeId);
+  if (!reference) return null;
+  return programmes.find(function (programme) {
+    return programme.id === reference || programme.name.toLowerCase() === reference.toLowerCase();
+  }) || null;
+}
+
+/** Highest number already used by each nested id prefix, across every item. */
+function nestedIdCounters(items) {
+  const counters = { MS: 0, RISK: 0, GAT: 0, TSK: 0 };
+  items.forEach(function (item) {
+    [['milestones', 'MS'], ['risks', 'RISK'], ['gates', 'GAT'], ['tasks', 'TSK']].forEach(function (pair) {
+      (item[pair[0]] || []).forEach(function (child) {
+        const match = new RegExp('^' + pair[1] + '-(\\d+)$').exec(String(child.id || ''));
+        if (match) counters[pair[1]] = Math.max(counters[pair[1]], parseInt(match[1], 10));
+      });
+    });
+  });
+  return counters;
+}
+
 function importCsv(body) {
   const dataset = validation.trimmed(body.dataset);
   requireEditable(dataset);
@@ -915,6 +1127,19 @@ async function handleApi(req, res, pathname, query) {
     }
   }
 
+  if (method === 'GET' && head === 'export' && segments[1] === 'guide') {
+    const text = guide.build();
+    const fileName = 'RoadmapJsonGuide_' + fileStamp() + '.md';
+    writeExport(fileName, text);
+    res.writeHead(200, {
+      'Content-Type': 'text/markdown; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="' + fileName + '"',
+      'X-Roadmap-Export-File': fileName,
+      'Content-Length': Buffer.byteLength(text)
+    });
+    return res.end(text);
+  }
+
   if (method === 'GET' && head === 'export' && segments[1] === 'json') {
     const bundle = buildBundle();
     const fileName = 'RoadmapBackup_' + fileStamp() + '.json';
@@ -950,6 +1175,10 @@ async function handleApi(req, res, pathname, query) {
 
   if (method === 'POST' && head === 'import' && segments[1] === 'csv') {
     return sendJson(res, 200, importCsv(await readBody(req)));
+  }
+
+  if (method === 'POST' && head === 'import' && segments[1] === 'add') {
+    return sendJson(res, 200, importAdditions(await readBody(req)));
   }
 
   if (method === 'POST' && head === 'sample') {

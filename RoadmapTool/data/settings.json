@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T04:55:03.807Z",
+  "updatedAt": "2026-09-23T05:33:18.951Z",
   "settings": {
     "appName": "Roadmap Tool",
     "organisation": "",
@@ -345,6 +345,53 @@
       {
         "id": "data",
         "name": "Data Engineering",
+        "active": true
+      }
+    ],
+    "people": [
+      {
+        "id": "nicolas",
+        "name": "Nicolas",
+        "active": true
+      },
+      {
+        "id": "sarah",
+        "name": "Sarah",
+        "active": true
+      },
+      {
+        "id": "jake",
+        "name": "Jake",
+        "active": true
+      },
+      {
+        "id": "priya",
+        "name": "Priya",
+        "active": true
+      },
+      {
+        "id": "commercial",
+        "name": "Commercial",
+        "active": true
+      },
+      {
+        "id": "finance",
+        "name": "Finance",
+        "active": true
+      },
+      {
+        "id": "operations",
+        "name": "Operations",
+        "active": true
+      },
+      {
+        "id": "data-team",
+        "name": "Data team",
+        "active": true
+      },
+      {
+        "id": "integration-team",
+        "name": "Integration team",
         "active": true
       }
     ],

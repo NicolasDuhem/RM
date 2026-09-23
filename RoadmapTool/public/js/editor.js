@@ -358,6 +358,14 @@
     }
   }
 
+  /** A name field: picked from the people maintained in Settings. */
+  function person(name, label) {
+    return {
+      name: name, label: label, type: 'select',
+      options: RM.peopleOptions, emptyLabel: '- nobody yet -'
+    };
+  }
+
   function summaryTab(state) {
     const draft = state.draft;
     return el('div', 'stack', [
@@ -397,11 +405,11 @@
         field(state, { name: 'targetDate', label: 'Target date', type: 'date' })
       ]),
       group('Ownership', [
-        field(state, { name: 'owner', label: 'Owner' }),
-        field(state, { name: 'businessOwner', label: 'Business owner' }),
-        field(state, { name: 'productOwner', label: 'Product owner' }),
-        field(state, { name: 'technicalOwner', label: 'Technical owner' }),
-        field(state, { name: 'deliveryOwner', label: 'Delivery owner' })
+        field(state, person('owner', 'Owner')),
+        field(state, person('businessOwner', 'Business owner')),
+        field(state, person('productOwner', 'Product owner')),
+        field(state, person('technicalOwner', 'Technical owner')),
+        field(state, person('deliveryOwner', 'Delivery owner'))
       ]),
       group('Business information', [
         field(state, { name: 'description', label: 'Description', type: 'textarea', full: true, rows: 3 }),
@@ -672,7 +680,7 @@
     const form = RM.form([
       { name: 'name', label: 'Task name', required: true, full: true },
       { name: 'status', label: 'Status', type: 'select', options: RM.selectOptions('statuses') },
-      { name: 'owner', label: 'Owner' },
+      { name: 'owner', label: 'Owner', type: 'select', options: RM.peopleOptions, emptyLabel: '- nobody yet -' },
       {
         name: 'stream', label: 'Resource stream', type: 'select', options: RM.selectOptions('resourceStreams'),
         emptyLabel: '- same as the system change -',
@@ -937,7 +945,7 @@
         { name: 'title', label: 'Risk', required: true, full: true },
         { name: 'impact', label: 'Impact', type: 'select', allowEmpty: true, options: [{ value: 'High', label: 'High' }, { value: 'Medium', label: 'Medium' }, { value: 'Low', label: 'Low' }] },
         { name: 'probability', label: 'Probability', type: 'select', allowEmpty: true, options: [{ value: 'High', label: 'High' }, { value: 'Medium', label: 'Medium' }, { value: 'Low', label: 'Low' }] },
-        { name: 'owner', label: 'Owner' },
+        { name: 'owner', label: 'Owner', type: 'select', options: RM.peopleOptions, emptyLabel: '- nobody yet -' },
         { name: 'status', label: 'Status', type: 'select', allowEmpty: true, options: [{ value: 'open', label: 'Open' }, { value: 'mitigated', label: 'Mitigated' }, { value: 'closed', label: 'Closed' }] },
         { name: 'description', label: 'Description', type: 'textarea', full: true, rows: 2 },
         { name: 'mitigation', label: 'Mitigation', type: 'textarea', full: true, rows: 2 }
@@ -952,7 +960,7 @@
       defaults: { status: 'open' },
       fields: [
         { name: 'title', label: 'Decision or gate', required: true, full: true },
-        { name: 'owner', label: 'Owner' },
+        { name: 'owner', label: 'Owner', type: 'select', options: RM.peopleOptions, emptyLabel: '- nobody yet -' },
         { name: 'requiredByDate', label: 'Required by', type: 'date' },
         { name: 'status', label: 'Status', type: 'select', allowEmpty: true, options: [{ value: 'open', label: 'Open' }, { value: 'decided', label: 'Decided' }, { value: 'closed', label: 'Closed' }] },
         { name: 'decisionDate', label: 'Decision date', type: 'date' },
@@ -1051,7 +1059,7 @@
         group('Programme', [
           field(state, { name: 'name', label: 'Programme name', full: true }),
           field(state, { name: 'shortName', label: 'Short name', hint: 'Used on the roadmap bar when space is tight.' }),
-          field(state, { name: 'owner', label: 'Owner' }),
+          field(state, person('owner', 'Owner')),
           field(state, { name: 'status', label: 'Status', type: 'select', list: 'statuses', badge: 'status', options: RM.selectOptions('statuses') }),
           field(state, { name: 'priority', label: 'Priority', type: 'select', list: 'priorities', badge: 'priority', options: RM.selectOptions('priorities') }),
           field(state, { name: 'colour', label: 'Colour', type: 'colour' })

@@ -114,7 +114,8 @@ function check(name, ok, detail) {
   await page.waitForTimeout(400);
   const taskModal = page.locator('.modal').last();
   await taskModal.locator('.field', { hasText: 'Task name' }).locator('input').fill('Build the integration');
-  await taskModal.locator('.field').filter({ hasText: /^Owner$/ }).locator('input').fill('Jake');
+  await taskModal.locator('.field').filter({ has: page.locator('.field-label', { hasText: /^Owner$/ }) })
+    .locator('select').selectOption({ label: 'Jake' });
   await taskModal.locator('.field').filter({ hasText: /^Product Owner$/ }).locator('input').fill('3');
   await taskModal.locator('.field').filter({ hasText: /^Development$/ }).locator('input').fill('12');
   await taskModal.locator('.field').filter({ hasText: /^Integration$/ }).locator('input').fill('8');
@@ -273,6 +274,78 @@ function check(name, ok, detail) {
   await page.waitForTimeout(500);
   check('settings can be locked again', await page.locator('input[type=password]').count() === 1);
 
+  console.log('\nNothing overlapping');
+  await page.locator('.nav-link', { hasText: 'Roadmap' }).click();
+  await page.waitForTimeout(500);
+  await page.locator('.row-title', { hasText: 'Salesforce Accreditation Model' }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).click();
+  await page.waitForTimeout(500);
+  const spills = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('.modal .definition')).map(d => {
+      const r = d.getBoundingClientRect();
+      const c = d.querySelector('.input, .ms-control');
+      if (!c) return 0;
+      const cr = c.getBoundingClientRect();
+      return Math.round(Math.max(cr.right - r.right, r.left - cr.left));
+    }).filter(v => v > 1);
+  });
+  check('no control spills out of its column', spills.length === 0, JSON.stringify(spills));
+
+  console.log('\nOwner dropdowns');
+  const ownerTag = await page.locator('.definition', { hasText: 'Business owner' }).locator('select, input').evaluate(e => e.tagName);
+  check('owner fields are dropdowns', ownerTag === 'SELECT', ownerTag);
+  const ownerOptions = await page.locator('.definition', { hasText: 'Business owner' }).locator('select option').allTextContents();
+  check('they offer the people from Settings', ownerOptions.indexOf('Sarah') > 0 && ownerOptions.indexOf('Jake') > 0);
+  await page.locator('.definition', { hasText: 'Technical owner' }).locator('select').selectOption({ label: 'Jake' });
+  await page.locator('.panel-footer .button-primary', { hasText: 'Save changes' }).click();
+  await page.waitForTimeout(900);
+  check('the picked name is saved', await page.evaluate(() => window.RM.itemById('RM-0001').technicalOwner) === 'Jake');
+  await page.locator('.modal .icon-button').first().click();
+  await page.waitForTimeout(300);
+
+  console.log('\nBacklog planning');
+  await page.locator('.nav-link', { hasText: 'Backlog' }).click();
+  await page.waitForTimeout(600);
+  const backlogHeaders = await page.locator('.table thead th').allTextContents();
+  check('the backlog shows team, dates and effort',
+    backlogHeaders.includes('Team') && backlogHeaders.includes('Dates') && backlogHeaders.includes('Effort'));
+  await page.locator('.link-button', { hasText: 'Automated dealer credit checks' }).click();
+  await page.waitForTimeout(400);
+  await page.locator('.modal .button-primary', { hasText: 'Edit' }).click();
+  await page.waitForTimeout(500);
+  const backlogForm = page.locator('.modal').last();
+  await backlogForm.locator('.field', { hasText: 'Expected start' }).locator('input').fill('2027-06-01');
+  await backlogForm.locator('.field', { hasText: 'Expected end' }).locator('input').fill('2027-08-31');
+  await backlogForm.locator('.field', { hasText: 'Team / resource stream' }).locator('select').selectOption({ label: 'B2B' });
+  await backlogForm.locator('.field').filter({ hasText: /^Development days$/ }).locator('input').fill('15');
+  await backlogForm.locator('.button-primary', { hasText: 'Save changes' }).click();
+  await page.waitForTimeout(1000);
+  const planned = await page.evaluate(() => window.RM.records('backlog').find(b => b.change === 'Automated dealer credit checks'));
+  check('a backlog item can carry dates, a team and effort',
+    planned.startDate === '2027-06-01' && planned.stream === 'b2b' && planned.days.dev === 15);
+
+  console.log('\nBacklog inside a scenario');
+  await page.locator('.nav-link', { hasText: 'Resources' }).click();
+  await page.waitForTimeout(800);
+  await page.locator('.segment', { hasText: 'Capacity plan' }).click();
+  await page.waitForTimeout(700);
+  const plannedOption = page.locator('.backlog-option', { hasText: 'Automated dealer credit checks' });
+  check('the capacity plan lists the backlog', await plannedOption.count() === 1);
+  await plannedOption.locator('input').check();
+  await page.locator('.button-primary', { hasText: 'Save capacity plan' }).click();
+  await page.waitForTimeout(1000);
+  check('the scenario remembers what it carries', await page.evaluate(() => {
+    const s = window.RM.records('resourceScenarios').find(x => x.active) || window.RM.records('resourceScenarios')[0];
+    return (s.includedBacklogIds || []).length > 0;
+  }));
+  await page.locator('.segment', { hasText: 'Demand vs capacity' }).click();
+  await page.waitForTimeout(900);
+  check('backlog effort reaches the demand grid', await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('td[title]'))
+      .some(c => /Backlog: Automated dealer credit checks/.test(c.getAttribute('title')));
+  }));
+
   console.log('\nData');
   await page.locator('.nav-link', { hasText: 'Data' }).click();
   await page.waitForTimeout(700);
@@ -280,6 +353,37 @@ function check(name, ok, detail) {
   await page.locator('.button', { hasText: 'Export Tasks CSV' }).click();
   const file = await download;
   check('the task register exports', /tasks_.*\.csv/.test(file.suggestedFilename()), file.suggestedFilename());
+
+  const guideDownload = page.waitForEvent('download');
+  await page.locator('.button', { hasText: 'Download the JSON guide' }).click();
+  const guideFile = await guideDownload;
+  check('the JSON guide downloads', /RoadmapJsonGuide_.*\.md/.test(guideFile.suggestedFilename()), guideFile.suggestedFilename());
+
+  const itemsBefore = await page.evaluate(() => window.RM.records('roadmapItems').length);
+  const programmesBefore = await page.evaluate(() => window.RM.records('programmes').length);
+  await page.setInputFiles('.file-picker-primary input[type=file]', {
+    name: 'draft.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      programmes: [{ name: 'Drafted outside the tool', owner: 'Sarah', status: 'discovery' }],
+      roadmapItems: [{
+        programme: 'Drafted outside the tool', title: 'A drafted change',
+        systemAreas: ['csi'], types: ['system-change'], stream: 'csi',
+        startDate: '2027-04-01', endDate: '2027-06-30',
+        tasks: [{ name: 'A drafted task', days: { po: 2, dev: 6 }, okrIds: ['kr-self-service'] }]
+      }]
+    }))
+  });
+  await page.waitForTimeout(600);
+  await page.locator('.modal .button-primary', { hasText: 'Add to the roadmap' }).click();
+  await page.waitForTimeout(1200);
+  check('a drafted JSON file is added to the roadmap',
+    await page.evaluate(() => window.RM.records('roadmapItems').length) === itemsBefore + 1);
+  check('its programme is created alongside it',
+    await page.evaluate(() => window.RM.records('programmes').length) === programmesBefore + 1);
+  const drafted = await page.evaluate(() => window.RM.records('roadmapItems').find(i => i.title === 'A drafted change'));
+  check('its task arrives with an id and its effort',
+    drafted && /^TSK-\d{4}$/.test(drafted.tasks[0].id) && drafted.tasks[0].days.dev === 6);
 
   console.log('\nconsole errors: ' + JSON.stringify(errors));
   console.log(pass + ' passed, ' + fail + ' failed');

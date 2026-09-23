@@ -380,6 +380,16 @@ function validateBacklogItem(input, context) {
   record.promoted = bool(record.promoted);
   record.roadmapItemId = trimmed(record.roadmapItemId);
 
+  // Optional dates and effort, so a backlog item can be costed and included
+  // in a resource scenario before it is scheduled on the roadmap.
+  record.startDate = optionalDate(errors, record.startDate, 'startDate', 'Start date');
+  record.endDate = optionalDate(errors, record.endDate, 'endDate', 'End date');
+  if (record.startDate && record.endDate && record.endDate < record.startDate) {
+    errors.push({ field: 'endDate', message: 'End date must be the same as, or after, the start date.' });
+  }
+  record.stream = trimmed(record.stream);
+  record.days = cleanDays(record.days);
+
   checkUniqueId(errors, record.id, ctx);
   stamp(record, ctx.existing, ctx.editor);
   return result(errors, record);
@@ -403,6 +413,9 @@ function validateResourceScenario(input, context) {
   //   allocations[streamId][resourceTypeId]["2026-10"] = 1.5 (FTE)
   record.allocations = cleanAllocations(errors, record.allocations, record.resources);
   delete record.resources;
+
+  // Backlog items chosen to count towards this scenario's demand.
+  record.includedBacklogIds = idList(record.includedBacklogIds, '');
 
   checkUniqueId(errors, record.id, ctx);
   stamp(record, ctx.existing, ctx.editor);
@@ -476,7 +489,7 @@ function upcomingMonths(count) {
 /* ------------------------------------------------------------------ */
 
 const OPTION_LISTS = ['systems', 'itemTypes', 'statuses', 'priorities', 'milestoneTypes',
-  'dependencyTypes', 'resourceTypes', 'resourceStreams'];
+  'dependencyTypes', 'resourceTypes', 'resourceStreams', 'people'];
 
 function validateSettings(input, context) {
   const errors = [];

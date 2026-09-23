@@ -290,8 +290,8 @@
         select('okr', 'OKR', RM.okrs.flat().map(function (entry) {
           return { value: entry.id, label: (entry.level === 2 ? '\u2014 ' : '') + entry.name };
         })),
-        select('owner', 'Owner', RM.ownersInUse().map(function (o) { return { value: o, label: o }; })),
-        select('productOwner', 'Product Owner', RM.productOwnersInUse().map(function (o) { return { value: o, label: o }; })),
+        select('owner', 'Owner', RM.peopleOptions()),
+        select('productOwner', 'Product Owner', RM.peopleOptions()),
         dateInput('dateFrom', 'From'),
         dateInput('dateTo', 'To')
       ])

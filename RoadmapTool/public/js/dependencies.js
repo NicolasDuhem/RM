@@ -306,7 +306,7 @@
       { name: 'toItemId', label: 'To (depends on the item above)', required: true, type: 'select', options: itemOptions, emptyLabel: '- choose an item -', full: true },
       { name: 'dependencyType', label: 'Type', type: 'select', options: RM.selectOptions('dependencyTypes') },
       { name: 'status', label: 'Status', type: 'select', options: RM.selectOptions('statuses') },
-      { name: 'owner', label: 'Owner' },
+      { name: 'owner', label: 'Owner', type: 'select', options: RM.peopleOptions, emptyLabel: '- nobody yet -' },
       { name: 'blocking', label: 'Blocking', type: 'checkbox', hint: 'Blocking dependencies are highlighted on the roadmap.' },
       { name: 'description', label: 'Description', type: 'textarea', full: true, rows: 2 },
       { name: 'notes', label: 'Notes', type: 'textarea', full: true, rows: 2 }

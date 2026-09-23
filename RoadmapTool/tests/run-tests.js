@@ -392,6 +392,103 @@ async function run() {
   check('the roadmap CSV no longer has a scope column', itemCsv.indexOf('Out Of Scope') < 0);
 
   /* -------------------------------------------------- */
+  process.stdout.write('\nBacklog planning\n');
+  rev = await revisions();
+  const plannedBacklog = await api('POST', '/api/dataset/backlog/create', {
+    revision: rev.backlog, editor: 'Tester',
+    record: {
+      change: 'Costed backlog item', owner: 'Priya', stream: 'd2c',
+      startDate: '2027-02-01', endDate: '2027-04-30', days: { po: 4, dev: 12 }
+    }
+  });
+  equal('a backlog item can carry expected dates', plannedBacklog.body.record.startDate, '2027-02-01');
+  equal('a backlog item can carry a team', plannedBacklog.body.record.stream, 'd2c');
+  equal('a backlog item can carry an effort estimate', plannedBacklog.body.record.days.dev, 12);
+
+  const backwardsBacklog = await api('POST', '/api/dataset/backlog/create', {
+    revision: plannedBacklog.body.revision, editor: 'Tester',
+    record: { change: 'Backwards', startDate: '2027-04-01', endDate: '2027-01-01' }
+  });
+  equal('backlog dates are checked the same way', backwardsBacklog.status, 422);
+
+  rev = await revisions();
+  const carrying = await api('POST', '/api/dataset/resourceScenarios/create', {
+    revision: rev.resourceScenarios, editor: 'Tester',
+    record: { name: 'Carries backlog', includedBacklogIds: [plannedBacklog.body.record.id, plannedBacklog.body.record.id] }
+  });
+  equal('a scenario records which backlog items it carries', carrying.body.record.includedBacklogIds.length, 1);
+
+  const backlogCsv = String((await api('GET', '/api/export/csv/backlog')).body);
+  check('the backlog CSV carries the planning columns',
+    backlogCsv.indexOf('Stream,Start Date,End Date') > 0 && backlogCsv.indexOf('Development Days') > 0);
+
+  /* -------------------------------------------------- */
+  process.stdout.write('\nThe JSON guide and additive import\n');
+  const guideResponse = await api('GET', '/api/export/guide');
+  equal('the JSON guide is generated', guideResponse.status, 200);
+  const guideText = String(guideResponse.body);
+  check('the guide lists the live statuses', guideText.indexOf('| `discovery` | Discovery |') > 0);
+  check('the guide lists the live streams', guideText.indexOf('Resource streams') > 0);
+  check('the guide lists the people', guideText.indexOf('* Nicolas') > 0);
+  check('the guide lists the OKRs with both levels',
+    guideText.indexOf('`okr-dealer`') > 0 && guideText.indexOf('`kr-order-errors`') > 0);
+  check('the guide tells the reader not to invent master data',
+    guideText.indexOf('Never invent master data') > 0);
+  check('a copy is written to the exports folder',
+    fs.readdirSync(path.join(ROOT, 'exports')).some(function (f) { return f.indexOf('RoadmapJsonGuide') === 0; }));
+
+  // The example printed in the guide must itself be importable.
+  const example = JSON.parse(/## The shape[\s\S]*?```json\n([\s\S]*?)\n```/.exec(guideText)[1]);
+  const programmesBefore = (await records('programmes')).length;
+  const itemsBefore = (await records('roadmapItems')).length;
+  const added = await api('POST', '/api/import/add', { bundle: example, editor: 'Tester' });
+  equal('the example in the guide imports cleanly', added.status, 200);
+  equal('it raises no unknown-value warnings', added.body.warnings.length, 0);
+  equal('nothing that already existed was replaced', (await records('programmes')).length, programmesBefore + added.body.programmes);
+  equal('the system change was added', (await records('roadmapItems')).length, itemsBefore + 1);
+  const addedItem = (await records('roadmapItems')).slice(-1)[0];
+  check('its tasks were given ids', (addedItem.tasks || []).every(function (task) { return /^TSK-\d{4}$/.test(task.id); }));
+  check('its tasks keep their effort', addedItem.tasks[0].days.dev > 0);
+
+  const reuse = await api('POST', '/api/import/add', {
+    editor: 'Tester',
+    bundle: {
+      programmes: [{ name: example.programmes[0].name, description: 'Same name as before' }],
+      roadmapItems: [{ programme: example.programmes[0].name, title: 'Second change under the same programme' }]
+    }
+  });
+  equal('a programme with a name that already exists is reused', reuse.body.programmes, 0);
+  equal('and its system change still lands', reuse.body.roadmapItems, 1);
+
+  const refused = await api('POST', '/api/import/add', {
+    editor: 'Tester',
+    bundle: {
+      programmes: [{ name: 'Never created' }],
+      roadmapItems: [
+        { programme: 'No such programme', title: 'Orphan' },
+        { programme: 'Never created', title: 'Backwards', startDate: '2027-05-01', endDate: '2027-01-01' }
+      ]
+    }
+  });
+  equal('an import naming a missing programme is refused', refused.status, 422);
+  check('every problem is listed', refused.body.error.detail.errors.length === 2);
+  check('and nothing at all was written',
+    !(await records('programmes')).some(function (p) { return p.name === 'Never created'; }));
+
+  const warned = await api('POST', '/api/import/add', {
+    editor: 'Tester',
+    bundle: {
+      roadmapItems: [{
+        programme: example.programmes[0].name, title: 'Uses values nobody set up',
+        status: 'in-progress', systemAreas: ['sap'], stream: 'platform-team',
+        tasks: [{ name: 'T', okrIds: ['kr-made-up'], days: { dev: 2 } }]
+      }]
+    }
+  });
+  equal('an unknown value does not block the import', warned.status, 200);
+  check('but it is reported back', warned.body.warnings.length === 4, JSON.stringify(warned.body.warnings));
+
+  /* -------------------------------------------------- */
   process.stdout.write('\nFile safety\n');
   const programmesFile = path.join(ROOT, 'data', 'programmes.json');
   const goodContent = fs.readFileSync(programmesFile, 'utf8');

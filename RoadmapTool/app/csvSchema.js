@@ -92,6 +92,9 @@ function baseSchema(dataset) {
         col('Processes Impacted', 'processesImpacted'),
         col('Owner', 'owner'),
         option('Priority', 'priority', 'priorities'),
+        option('Stream', 'stream', 'resourceStreams'),
+        date('Start Date', 'startDate'),
+        date('End Date', 'endDate'),
         col('Comment', 'comment'),
         bool('Promoted', 'promoted'),
         col('Roadmap Item Id', 'roadmapItemId')
@@ -111,9 +114,15 @@ function option(header, field, listName) { return { header: header, field: field
 function schemaFor(dataset, settings) {
   const base = baseSchema(dataset);
   if (!base) return null;
+  const resourceTypes = (settings && Array.isArray(settings.resourceTypes)) ? settings.resourceTypes : [];
+
+  if (dataset === 'backlog') {
+    return base.concat(resourceTypes.map(function (type) {
+      return { header: type.name + ' Days', field: 'days.' + type.id, kind: 'number' };
+    }));
+  }
   if (dataset !== 'roadmapItems') return base;
 
-  const resourceTypes = (settings && Array.isArray(settings.resourceTypes)) ? settings.resourceTypes : [];
   const extra = [];
   resourceTypes.forEach(function (type) {
     extra.push({ header: 'Fast ' + type.name + ' Days', field: 'estimates.fast.days.' + type.id, kind: 'number' });
