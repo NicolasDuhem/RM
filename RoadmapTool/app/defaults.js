@@ -174,8 +174,6 @@ function sampleData() {
           ms('MS-0002', 'Integration mapped', '2026-10-10', 'in-progress', 'Field-by-field mapping agreed with the platform team. Blocked on the tax fields.'),
           ms('MS-0003', 'Go live', '2026-10-31', 'not-started', 'Needs the dealer confirmation round to be finished first.')
         ],
-        estimates: est({ po: 5, dev: 15, int: 5, data: 0 }, 'Higher technical debt - reuses the existing account extension.',
-          { po: 10, dev: 30, int: 15, data: 5 }, 'Normal', 'Proper master-data model with effective dating.'),
         risks: [risk('RISK-0001', 'Accreditation data quality', 'Existing spreadsheet data is incomplete.', 'High', 'Medium', 'Data cleanse before migration, dealer confirmation round.', 'Nicolas', 'open')],
         tasks: [
           task('TSK-0001', 'RM-0001', 'Create the accreditation object', 'in-progress', 'Nicolas', '',
@@ -204,8 +202,6 @@ function sampleData() {
         description: 'Matrix mapping accreditation to product categories and channels.',
         businessOutcome: 'A maintainable rule set rather than hard-coded restrictions.',
         milestones: [ms('MS-0004', 'POC', '2026-10-30', 'in-progress'), ms('MS-0005', 'UAT', '2026-12-01', 'not-started')],
-        estimates: est({ po: 4, dev: 12, int: 3, data: 2 }, 'Matrix held as configuration only.',
-          { po: 8, dev: 25, int: 8, data: 5 }, 'Normal', 'Full maintenance UI with versioning.'),
         tasks: [
           task('TSK-0004', 'RM-0002', 'Matrix data model', 'in-progress', 'Jake', 'b2b',
             ['kr-order-errors'], [], { po: 2, dev: 6, int: 0, data: 1 },
@@ -225,8 +221,6 @@ function sampleData() {
         description: 'Apply the accreditation matrix to the catalogue so ineligible products are not orderable.',
         businessOutcome: 'Dealers cannot order products they are not accredited for.',
         milestones: [ms('MS-0006', 'Integration mapped', '2027-01-15', 'not-started'), ms('MS-0007', 'Go live', '2027-02-15', 'not-started')],
-        estimates: est({ po: 3, dev: 10, int: 2, data: 0 }, 'Catalogue filter only, no basket revalidation.',
-          { po: 8, dev: 22, int: 6, data: 2 }, 'Normal', 'Filtering plus basket and order validation.'),
         gates: [gate('GAT-0001', 'Sign-off of the accreditation matrix', 'Commercial sign-off needed before catalogue restriction goes live.', 'Commercial', '2026-12-15', 'open')],
         tasks: [
           task('TSK-0006', 'RM-0003', 'Catalogue filtering', 'not-started', 'Jake', 'b2b',
@@ -246,8 +240,6 @@ function sampleData() {
         description: 'Define the product master attributes, ownership and the golden source for each attribute.',
         businessOutcome: 'Agreed definition of product data before any PIM investment.',
         milestones: [ms('MS-0008', 'POC', '2026-10-15', 'in-progress'), ms('MS-0009', 'POC', '2026-11-30', 'not-started')],
-        estimates: est({ po: 10, dev: 0, int: 0, data: 5 }, 'Workshop-led definition only.',
-          { po: 20, dev: 0, int: 0, data: 15 }, 'Normal', 'Full attribute catalogue with data profiling.'),
         tasks: [
           task('TSK-0008', 'RM-0004', 'Attribute catalogue workshops', 'in-progress', 'Sarah', 'erp-subsidiaries',
             ['kr-product-master'], [], { po: 8, dev: 0, int: 0, data: 2 },
@@ -265,8 +257,6 @@ function sampleData() {
       '2026-11-01', '2027-01-31', 'not-started', 'medium', 'Sarah', {
         description: 'Decide and implement where translations are mastered and how they are published.',
         businessOutcome: 'Localised content without manual spreadsheet rounds.',
-        estimates: est({ po: 5, dev: 10, int: 5, data: 0 }, 'Spreadsheet-driven import.',
-          { po: 12, dev: 25, int: 10, data: 5 }, 'Normal', 'Translation workflow inside the PIM.'),
         tasks: [
           task('TSK-0010', 'RM-0005', 'Translation source decision', 'not-started', 'Sarah', 'd2c',
             ['kr-time-to-publish'], [], { po: 4, dev: 0, int: 0, data: 0 },
@@ -284,8 +274,6 @@ function sampleData() {
       '2027-01-01', '2027-03-31', 'not-started', 'medium', 'Sarah', {
         description: 'Evaluate PIM options against the agreed product data definition.',
         businessOutcome: 'An evidence-based recommendation on PIM.',
-        estimates: est({ po: 10, dev: 0, int: 0, data: 3 }, 'Desk-based comparison.',
-          { po: 20, dev: 5, int: 5, data: 8 }, 'Normal', 'Includes a proof of concept with two vendors.'),
         tasks: [
           task('TSK-0012', 'RM-0006', 'Requirements and vendor long list', 'not-started', 'Sarah', 'erp-subsidiaries',
             ['kr-product-master'], [], { po: 6, dev: 0, int: 0, data: 1 }, '',
@@ -299,8 +287,6 @@ function sampleData() {
         description: 'Post platform orders into NetSuite with entity, pricing and tax handling.',
         businessOutcome: 'Orders reach finance without rekeying.',
         milestones: [ms('MS-0010', 'Integration mapped', '2026-10-15', 'in-progress', 'Order payload agreed; tax treatment per entity still open.'), ms('MS-0011', 'UAT', '2026-11-10', 'not-started', 'Two weeks with finance and three pilot dealers.'), ms('MS-0012', 'Go live', '2026-11-30', 'not-started', 'Cut over on a Friday evening, with the old process available for a week.')],
-        estimates: est({ po: 5, dev: 20, int: 20, data: 0 }, 'Single entity, minimal error handling.',
-          { po: 12, dev: 35, int: 35, data: 5 }, 'Normal', 'Multi-entity with full reconciliation.'),
         risks: [risk('RISK-0002', 'Tax configuration per entity', 'Tax treatment differs per entity and is not fully documented.', 'High', 'High', 'Finance workshop per entity before build completes.', 'Finance', 'open')],
         tasks: [
           task('TSK-0013', 'RM-0007', 'Order payload mapping', 'in-progress', 'Integration team', 'erp-hq',
@@ -324,8 +310,6 @@ function sampleData() {
         description: 'Publish inventory from NetSuite to the platform on a reliable schedule.',
         businessOutcome: 'Dealers see availability that reflects the warehouse.',
         milestones: [ms('MS-0013', 'Integration mapped', '2026-11-20', 'not-started'), ms('MS-0014', 'Go live', '2026-12-15', 'not-started')],
-        estimates: est({ po: 4, dev: 12, int: 15, data: 3 }, 'Scheduled file feed.',
-          { po: 10, dev: 25, int: 30, data: 10 }, 'Normal', 'Event-driven inventory with reconciliation.'),
         tasks: [
           task('TSK-0016', 'RM-0008', 'Inventory feed', 'in-progress', 'Integration team', 'erp-hq',
             ['kr-availability'], [], { po: 2, dev: 6, int: 10, data: 2 },
@@ -344,8 +328,6 @@ function sampleData() {
         description: 'Enable the USA entity on the platform with local pricing, tax and logistics.',
         businessOutcome: 'USA dealers ordering through the same platform.',
         milestones: [ms('MS-0015', 'UAT', '2027-01-20', 'not-started'), ms('MS-0016', 'Go live', '2027-02-28', 'not-started')],
-        estimates: est({ po: 8, dev: 10, int: 10, data: 2 }, 'Pilot with a small dealer group.',
-          { po: 15, dev: 20, int: 20, data: 5 }, 'Normal', 'Full onboarding programme.'),
         tasks: [
           task('TSK-0018', 'RM-0009', 'Entity configuration', 'not-started', 'Jake', 'b2b',
             ['kr-new-entities'], [], { po: 3, dev: 6, int: 4, data: 1 },
@@ -363,8 +345,6 @@ function sampleData() {
       '2027-03-01', '2027-05-31', 'not-started', 'medium', 'Jake', {
         description: 'Enable the Singapore entity on the platform.',
         businessOutcome: 'APAC dealers ordering through the same platform.',
-        estimates: est({ po: 6, dev: 8, int: 8, data: 2 }, 'Reuse of the USA rollout pattern.',
-          { po: 12, dev: 16, int: 16, data: 4 }, 'Normal', 'Full localisation review.'),
         tasks: [
           task('TSK-0020', 'RM-0010', 'Entity configuration', 'not-started', 'Jake', 'b2b',
             ['kr-new-entities'], [], { po: 3, dev: 5, int: 5, data: 1 }, '',
@@ -377,8 +357,6 @@ function sampleData() {
       '2027-05-01', '2027-08-31', 'not-started', 'medium', 'Jake', {
         description: 'Enable the Japan entity on the platform, including local language.',
         businessOutcome: 'Japanese dealers ordering through the same platform.',
-        estimates: est({ po: 8, dev: 10, int: 10, data: 3 }, 'Reuse of the rollout pattern.',
-          { po: 15, dev: 20, int: 20, data: 6 }, 'Normal', 'Includes full translation workflow.'),
         tasks: [
           task('TSK-0021', 'RM-0011', 'Entity configuration and translation', 'not-started', 'Jake', 'b2b',
             ['kr-new-entities'], [], { po: 4, dev: 6, int: 5, data: 1 }, '',
@@ -392,7 +370,6 @@ function sampleData() {
         description: 'Show availability across entities so a dealer can be served from another warehouse.',
         businessOutcome: 'Fewer lost orders when local stock is unavailable.',
         notes: 'To be defined - deliberately undated until discovery completes.',
-        estimates: est({ po: 0, dev: 0, int: 0, data: 0 }, '', { po: 0, dev: 0, int: 0, data: 0 }, '', ''),
         tasks: []
       })
   ];
@@ -490,7 +467,6 @@ function sampleData() {
       risks: [],
       tasks: [],
       gates: [],
-      estimates: est({ po: 0, dev: 0, int: 0, data: 0 }, '', { po: 0, dev: 0, int: 0, data: 0 }, '', ''),
       backlogId: ''
     }, extra, stamp);
   }
@@ -501,13 +477,6 @@ function sampleData() {
 
   function deliveryOwnersFor(owner) {
     return PRODUCT_OWNER_NAMES.indexOf(owner) >= 0 ? ['Jake'] : [owner];
-  }
-
-  function est(fastDays, fastRisk, standardDays, standardRisk, standardNotes) {
-    return {
-      fast: { days: fastDays, risk: fastRisk, notes: '' },
-      standard: { days: standardDays, risk: standardRisk, notes: standardNotes || '' }
-    };
   }
 
   function ms(id, name, date, status, notes) {

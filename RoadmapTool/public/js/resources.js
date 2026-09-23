@@ -16,8 +16,11 @@
   const state = {
     tab: 'capacity',
     scenarioId: '',
-    source: 'tasks',
+    // Capacity is entered month by month, but demand can be read either way:
+    // weekly shows exactly which week the work piles up in.
+    granularity: 'month',
     months: 12,
+    weeks: 13,
     from: ''
   };
 
@@ -57,6 +60,71 @@
   }
 
   /* ---------------------------------------------------------------- */
+  /* Periods - a month or a week, whichever is being read              */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Weekly is a way of reading demand against the plan. The capacity plan
+   * itself is always entered month by month, so it is always shown that way.
+   */
+  function readingWeekly() {
+    return state.granularity === 'week' && state.tab === 'demand';
+  }
+
+  function firstOfMonth(key) {
+    const parts = String(key).split('-');
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+  }
+
+  /** The Monday on or before a date, so weeks line up week by week. */
+  function mondayOf(date) {
+    const out = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const weekday = (out.getDay() + 6) % 7;
+    out.setDate(out.getDate() - weekday);
+    return out;
+  }
+
+  function weekLabel(start) {
+    return start.getDate() + ' ' + RM.dates.MONTHS[start.getMonth()];
+  }
+
+  /**
+   * The columns of the demand grid and the chart: whole months, or the weeks
+   * that start in the same window.
+   */
+  function periodWindow() {
+    if (readingWeekly()) {
+      const out = [];
+      const cursor = mondayOf(firstOfMonth(state.from || monthKey(new Date())));
+      for (let i = 0; i < state.weeks; i += 1) {
+        const start = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (i * 7));
+        const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+        out.push({ key: 'W' + RM.dates.toIso(start), label: weekLabel(start), short: weekLabel(start), start: start, end: end });
+      }
+      return out;
+    }
+    return monthWindow().map(function (key) {
+      const start = firstOfMonth(key);
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+      return { key: key, label: monthLabel(key), short: monthLabel(key).slice(0, 3), start: start, end: end };
+    });
+  }
+
+  function periodLength() {
+    return readingWeekly() ? state.weeks : state.months;
+  }
+
+  function windowLabel(periods) {
+    if (!periods.length) return '';
+    const last = periods[periods.length - 1];
+    if (readingWeekly()) {
+      return 'w/c ' + RM.dates.formatDate(RM.dates.toIso(periods[0].start))
+        + ' \u2192 ' + RM.dates.formatDate(RM.dates.toIso(last.end));
+    }
+    return periods[0].label + ' \u2192 ' + last.label;
+  }
+
+  /* ---------------------------------------------------------------- */
   /* Page                                                              */
   /* ---------------------------------------------------------------- */
 
@@ -71,7 +139,7 @@
 
     root.appendChild(RM.pageHeader(
       'Resources',
-      'Capacity is planned per stream and discipline, month by month. Demand comes from the effort on each task, spread across that task\'s own dates, plus any backlog items this scenario carries.',
+      'Capacity is planned per stream and discipline, month by month. Demand comes from the effort on each task, spread across that task\'s own dates, and can be read by month or by week, plus any backlog items this scenario carries.',
       [RM.button('+ New Scenario', function () { openScenarioForm(null); }, 'primary')]
     ));
 
@@ -123,27 +191,49 @@
   }
 
   function monthNavigation() {
+    const periods = periodWindow();
+    const weekly = readingWeekly();
     return el('div', 'month-nav', [
-      el('button', { class: 'icon-button', type: 'button', title: 'Earlier months', onclick: function () {
+      el('button', { class: 'icon-button', type: 'button', title: 'Earlier', onclick: function () {
         state.from = shiftMonth(state.from, -3);
         RM.renderView();
       } }, '‹'),
-      el('span', 'month-nav-label', monthLabel(state.from) + ' → ' + monthLabel(shiftMonth(state.from, state.months - 1))),
-      el('button', { class: 'icon-button', type: 'button', title: 'Later months', onclick: function () {
+      el('span', 'month-nav-label', windowLabel(periods)),
+      el('button', { class: 'icon-button', type: 'button', title: 'Later', onclick: function () {
         state.from = shiftMonth(state.from, 3);
         RM.renderView();
       } }, '›'),
       (function () {
         const select = el('select', 'input select select-compact');
-        [6, 12, 18, 24].forEach(function (count) {
-          select.appendChild(el('option', { value: String(count) }, count + ' months'));
+        (weekly ? [8, 13, 26, 52] : [6, 12, 18, 24]).forEach(function (count) {
+          select.appendChild(el('option', { value: String(count) }, count + (weekly ? ' weeks' : ' months')));
         });
-        select.value = String(state.months);
-        select.addEventListener('change', function () { state.months = Number(select.value); RM.renderView(); });
+        select.value = String(periodLength());
+        select.addEventListener('change', function () {
+          if (weekly) state.weeks = Number(select.value);
+          else state.months = Number(select.value);
+          RM.renderView();
+        });
         return select;
       }()),
       RM.button('Today', function () { state.from = monthKey(new Date()); RM.renderView(); })
     ]);
+  }
+
+  /** Read the same plan month by month or week by week. */
+  function granularitySwitch() {
+    return el('div', 'segmented segmented-compact', [
+      granularityButton('Monthly', 'month'),
+      granularityButton('Weekly', 'week')
+    ]);
+  }
+
+  function granularityButton(label, value) {
+    return el('button', {
+      class: 'segment' + (state.granularity === value ? ' segment-active' : ''),
+      type: 'button',
+      onclick: function () { state.granularity = value; RM.renderView(); }
+    }, label);
   }
 
   function summaryChips(scenario) {
@@ -186,6 +276,26 @@
 
   function capacityDays(scenario, streamId, typeId, month) {
     return capacityFte(scenario, streamId, typeId, month) * workingDays();
+  }
+
+  /**
+   * Capacity for any stretch of time. A month's days are spread evenly across
+   * its calendar days and then counted over the period, which is what lets a
+   * plan entered monthly be read a week at a time. Over a whole month this
+   * comes back to exactly FTE x working days.
+   */
+  function capacityForPeriod(scenario, streamId, typeId, period) {
+    if (!readingWeekly()) {
+      return capacityDays(scenario, streamId, typeId, period.key);
+    }
+    let total = 0;
+    monthsBetween(period.start, period.end).forEach(function (month) {
+      const inMonth = overlap(period.start, period.end, month.start, month.end);
+      if (inMonth <= 0) return;
+      const monthDays = RM.dates.daysBetween(month.start, month.end) + 1;
+      total += capacityDays(scenario, streamId, typeId, month.key) * (inMonth / monthDays);
+    });
+    return total;
   }
 
   /* ---------------------------------------------------------------- */
@@ -380,7 +490,7 @@
    * Effort is spread evenly across the days of the system change the task
    * belongs to, then totalled per stream, discipline and month.
    */
-  function buildDemand(months, scenario) {
+  function buildDemand(periods, scenario) {
     const resourceTypes = RM.effort.resourceTypes();
     const demand = {};
     const contributors = {};
@@ -392,15 +502,15 @@
     /** Spreads one line of effort evenly across the days it runs for. */
     function add(stream, days, label, start, end) {
       const totalDays = RM.dates.daysBetween(start, end) + 1;
-      monthsBetween(start, end).forEach(function (month) {
-        if (months.indexOf(month.key) < 0) return;
-        const overlapDays = overlap(start, end, month.start, month.end);
+      if (totalDays <= 0) return;
+      periods.forEach(function (period) {
+        const overlapDays = overlap(start, end, period.start, period.end);
         if (overlapDays <= 0) return;
         const share = overlapDays / totalDays;
         resourceTypes.forEach(function (type) {
           const value = (days[type.id] || 0) * share;
           if (!value) return;
-          const key = stream + '|' + type.id + '|' + month.key;
+          const key = stream + '|' + type.id + '|' + period.key;
           demand[key] = (demand[key] || 0) + value;
           if (!contributors[key]) contributors[key] = [];
           if (contributors[key].indexOf(label) < 0) contributors[key].push(label);
@@ -409,17 +519,11 @@
     }
 
     RM.records('roadmapItems').filter(RM.matchesFilters).forEach(function (item) {
-      const itemStart = RM.dates.parseIso(item.startDate);
-      const itemEnd = RM.dates.parseIso(item.endDate);
+      const range = RM.itemRange(item);
+      const itemStart = RM.dates.parseIso(range.startDate);
+      const itemEnd = RM.dates.parseIso(range.endDate);
       const itemDated = !!(itemStart && itemEnd && itemEnd >= itemStart);
       const tasks = item.tasks || [];
-
-      if (state.source !== 'tasks') {
-        // An estimate belongs to the whole change, so it uses the change's dates.
-        if (!itemDated) { undated += 1; return; }
-        add(item.stream || 'unassigned', RM.effort.ofEstimate(item, state.source), item.title, itemStart, itemEnd);
-        return;
-      }
 
       if (tasks.length === 0) { untasked += 1; return; }
 
@@ -486,28 +590,24 @@
   }
 
   function demandView(scenario) {
-    const months = monthWindow();
+    const periods = periodWindow();
     const resourceTypes = RM.effort.resourceTypes();
-    const model = buildDemand(months, scenario);
+    const model = buildDemand(periods, scenario);
     const streamList = streams();
-
-    const sourceSwitch = el('div', 'segmented', [
-      sourceSegment('From tasks', 'tasks'),
-      sourceSegment('Fast MVP estimate', 'fast'),
-      sourceSegment('Standard estimate', 'standard')
-    ]);
+    const unit = readingWeekly() ? 'week' : 'month';
 
     return el('div', 'stack', [
       el('div', 'toolbar toolbar-inner', [
-        el('span', 'muted small', 'Demand source'),
-        sourceSwitch,
+        el('span', 'muted small', 'Read by'),
+        granularitySwitch(),
         el('div', 'toolbar-spacer'),
+        RM.button('Export to Excel', function () { exportSheet(scenario, periods, model, streamList); }),
         el('span', 'muted small', RM.filtersActive() ? 'Roadmap filters are applied.' : 'All roadmap items included.')
       ]),
-      model.untasked && state.source === 'tasks'
-        ? el('div', 'callout callout-info', model.untasked + ' system change(s) have no tasks yet, so they add nothing to demand. Switch source to an estimate to include them.')
+      model.untasked
+        ? el('div', 'callout callout-info', model.untasked + ' system change(s) have no tasks yet, so they add nothing to demand. Effort and dates both live on the tasks.')
         : null,
-      model.inheritedTasks && state.source === 'tasks'
+      model.inheritedTasks
         ? el('div', 'callout callout-warn', model.inheritedTasks + ' task(s) have no dates of their own, so their effort is spread across the whole of their system change. Give them dates for a truer picture of when the work lands.')
         : null,
       el('p', 'muted small', model.backlogCount
@@ -515,45 +615,39 @@
         : 'No backlog items are carried by this scenario. Pick them on the Capacity plan tab.'),
       el('div', 'table-wrap', el('table', 'table table-matrix table-demand', [
         el('thead', null, el('tr', null, [el('th', 'sticky-col', 'Stream / discipline')]
-          .concat(months.map(function (month) { return el('th', 'numeric', monthLabel(month)); })))),
+          .concat(periods.map(function (period) { return el('th', 'numeric', period.label); })))),
         el('tbody', null, demandRows())
       ])),
       el('p', 'muted small',
-        'Each cell shows demand in days against the capacity planned for that month. ' +
-        'Effort is spread across each task\'s own dates, so a task that is heavy up front shows as heavy up front. ' +
+        'Each cell shows demand in days against the capacity planned for that ' + unit + '. ' +
+        'Effort comes from the tasks and is spread across each task\'s own dates, so a task that is heavy up front shows as heavy up front. ' +
         'Red means demand is above capacity. Nothing here changes a date - it is for the conversation about what moves.'),
       totalsChart()
     ]);
-
-    function sourceSegment(label, id) {
-      return el('button', {
-        class: 'segment' + (state.source === id ? ' segment-active' : ''), type: 'button',
-        onclick: function () { state.source = id; RM.renderView(); }
-      }, label);
-    }
 
     function demandRows() {
       const out = [];
       streamList.forEach(function (stream) {
         const hasAny = resourceTypes.some(function (type) {
-          return months.some(function (month) {
-            return model.demand[stream.id + '|' + type.id + '|' + month] || capacityDays(scenario, stream.id, type.id, month);
+          return periods.some(function (period) {
+            return model.demand[stream.id + '|' + type.id + '|' + period.key]
+              || capacityForPeriod(scenario, stream.id, type.id, period);
           });
         });
         if (!hasAny) return;
 
         out.push(el('tr', 'row-group', [
-          el('th', { class: 'sticky-col', colspan: String(months.length + 1) }, stream.name)
+          el('th', { class: 'sticky-col', colspan: String(periods.length + 1) }, stream.name)
         ]));
 
         resourceTypes.forEach(function (type) {
           const cells = [el('th', 'sticky-col row-header', [
             el('span', 'row-header-indent'), el('span', null, type.name)
           ])];
-          months.forEach(function (month) {
-            const key = stream.id + '|' + type.id + '|' + month;
+          periods.forEach(function (period) {
+            const key = stream.id + '|' + type.id + '|' + period.key;
             const value = model.demand[key] || 0;
-            const capacity = capacityDays(scenario, stream.id, type.id, month);
+            const capacity = capacityForPeriod(scenario, stream.id, type.id, period);
             const over = capacity > 0 ? value > capacity + 0.05 : value > 0.05;
             const title = (model.contributors[key] || []).slice(0, 8).join('\n');
             cells.push(el('td', {
@@ -569,22 +663,29 @@
       });
 
       if (!out.length) {
-        out.push(el('tr', null, el('td', { colspan: String(months.length + 1), class: 'muted' },
-          'No demand or capacity in these months.')));
+        out.push(el('tr', null, el('td', { colspan: String(periods.length + 1), class: 'muted' },
+          'No demand or capacity in this window.')));
       }
       return out;
     }
 
+    /** Demand for one discipline in one period, across every stream. */
+    function demandOf(typeId, period) {
+      return streamList.reduce(function (sum, stream) {
+        return sum + (model.demand[stream.id + '|' + typeId + '|' + period.key] || 0);
+      }, 0);
+    }
+
+    function capacityOf(typeId, period) {
+      return streamList.reduce(function (sum, stream) {
+        return sum + capacityForPeriod(scenario, stream.id, typeId, period);
+      }, 0);
+    }
+
     function totalsChart() {
       const max = Math.max(1, resourceTypes.reduce(function (peak, type) {
-        return months.reduce(function (inner, month) {
-          const demand = streamList.reduce(function (sum, stream) {
-            return sum + (model.demand[stream.id + '|' + type.id + '|' + month] || 0);
-          }, 0);
-          const capacity = streamList.reduce(function (sum, stream) {
-            return sum + capacityDays(scenario, stream.id, type.id, month);
-          }, 0);
-          return Math.max(inner, demand, capacity);
+        return periods.reduce(function (inner, period) {
+          return Math.max(inner, demandOf(type.id, period), capacityOf(type.id, period));
         }, peak);
       }, 0));
 
@@ -592,30 +693,101 @@
         return el('div', 'chart-block', [
           el('div', 'chart-title', [
             el('strong', null, type.name),
-            el('span', 'muted small', 'All streams, days per month')
+            el('span', 'muted small', 'All streams, days from tasks per ' + unit)
           ]),
-          el('div', 'chart', months.map(function (month) {
-            const demand = streamList.reduce(function (sum, stream) {
-              return sum + (model.demand[stream.id + '|' + type.id + '|' + month] || 0);
-            }, 0);
-            const capacity = streamList.reduce(function (sum, stream) {
-              return sum + capacityDays(scenario, stream.id, type.id, month);
-            }, 0);
+          el('div', 'chart', periods.map(function (period) {
+            const demand = demandOf(type.id, period);
+            const capacity = capacityOf(type.id, period);
             const over = capacity > 0 ? demand > capacity + 0.05 : demand > 0.05;
             return el('div', {
               class: 'chart-col',
-              title: monthLabel(month) + ': ' + RM.effort.format(demand) + ' days demand, ' + RM.effort.format(capacity) + ' days capacity'
+              title: period.label + ': ' + RM.effort.format(demand) + ' days demand, ' + RM.effort.format(capacity) + ' days capacity'
             }, [
               el('div', 'chart-bar-track', [
                 el('div', { class: 'chart-bar' + (over ? ' chart-bar-over' : ''), style: { height: Math.round((demand / max) * 100) + '%' } }),
                 capacity > 0 ? el('div', { class: 'chart-capacity', style: { bottom: Math.round((capacity / max) * 100) + '%' } }) : null
               ]),
-              el('span', 'chart-label', monthLabel(month).slice(0, 3))
+              el('span', 'chart-label', period.short)
             ]);
           }))
         ]);
       }));
     }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Export                                                            */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * The sheet holds exactly what is on screen - the same scenario, window,
+   * granularity and roadmap filters - one row per stream, discipline and
+   * measure, so it can be pivoted in Excel without any unpicking.
+   */
+  function exportSheet(scenario, periods, model, streamList) {
+    const resourceTypes = RM.effort.resourceTypes();
+    const weekly = readingWeekly();
+    const unit = weekly ? 'Week beginning' : 'Month';
+    const rows = [
+      ['Scenario', scenario ? scenario.name : ''],
+      ['Read by', weekly ? 'Week' : 'Month'],
+      ['Window', windowLabel(periods)],
+      ['Roadmap filters', RM.filtersActive() ? 'Applied' : 'None'],
+      ['Working days per month', String(workingDays())],
+      ['Exported', RM.dates.formatDateTime(new Date().toISOString())],
+      [],
+      ['Stream', 'Discipline', 'Measure'].concat(periods.map(function (period) {
+        return weekly ? RM.dates.toIso(period.start) : period.key;
+      })),
+      ['', '', unit].concat(periods.map(function (period) { return period.label; }))
+    ];
+
+    streamList.forEach(function (stream) {
+      resourceTypes.forEach(function (type) {
+        const demand = periods.map(function (period) {
+          return model.demand[stream.id + '|' + type.id + '|' + period.key] || 0;
+        });
+        const capacity = periods.map(function (period) {
+          return capacityForPeriod(scenario, stream.id, type.id, period);
+        });
+        const used = demand.some(Boolean) || capacity.some(Boolean);
+        if (!used) return;
+        rows.push([stream.name, type.name, 'Capacity (days)'].concat(capacity.map(round)));
+        rows.push([stream.name, type.name, 'Demand (days)'].concat(demand.map(round)));
+        rows.push([stream.name, type.name, 'Spare (days)'].concat(capacity.map(function (value, index) {
+          return round(value - demand[index]);
+        })));
+      });
+    });
+
+    // A plain download link cannot carry a body, so the sheet is posted and the
+    // reply is handed to the browser. The server keeps the exports folder copy.
+    postDownload('/api/export/resources', { rows: rows });
+  }
+
+  function round(value) {
+    return Math.round((Number(value) || 0) * 100) / 100;
+  }
+
+  /** Downloads the CSV a POST replies with, without leaving the page. */
+  function postDownload(path, body) {
+    window.fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      if (!response.ok) throw new Error('The export was refused.');
+      const name = response.headers.get('X-Roadmap-Export-File') || 'resources.csv';
+      return response.blob().then(function (blob) {
+        const url = window.URL.createObjectURL(blob);
+        const link = el('a', { href: url, download: name });
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.setTimeout(function () { window.URL.revokeObjectURL(url); }, 2000);
+        RM.toast('Resources exported and written to the exports folder.', 'success');
+      });
+    }).catch(function (err) { RM.handleError(err, 'Could not download the resources sheet'); });
   }
 
   /* ---------------------------------------------------------------- */

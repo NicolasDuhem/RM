@@ -236,7 +236,7 @@
         el('span', 'map-node-title', item ? item.title : id + ' (missing)'),
         el('span', 'map-node-meta', [
           item && item.systemArea ? RM.options.name('systems', item.systemArea) : '',
-          item && item.startDate ? ' · ' + RM.dates.formatDate(item.startDate) : ''
+          item && RM.itemRange(item).startDate ? ' \u00b7 ' + RM.dates.formatDate(RM.itemRange(item).startDate) : ''
         ].join(''))
       ]);
       canvas.appendChild(node);

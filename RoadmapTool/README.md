@@ -129,22 +129,35 @@ meeting, a year end. Add them in Settings (a label and a date), and each one is
 drawn down the whole roadmap with its label at the top, like the TODAY line.
 The *Key dates* tick box on the Roadmap toolbar shows or hides them.
 
-**Programme dates are never typed in.** A programme starts at the earliest
-start date of its children and ends at the latest end date. A programme with no
-dated children simply shows *Not scheduled*.
+**Dates are never typed in above the task.** A task has its own start and end.
+A system change runs from the first start to the last end of its tasks. A
+programme runs from the earliest to the latest of its system changes. Nothing
+above the task is entered by hand, so how long a piece of work takes always
+reflects the work actually in it.
+
+A system change with no dated tasks yet falls back to a *planned* start and end
+you can type on it, so a change can still be sketched onto the roadmap before
+it is broken down. As soon as one of its tasks has dates, the tasks take over
+and the panel shows *Start (from tasks)*.
 
 **Effort is never typed in twice either.** It is recorded on tasks and adds up
 to the system change, and again to the programme.
 
 A task has a name, status, owner, description, the OKRs it affects, any number
 of external links (a Jira ticket, a document, a design), its own start and end
-dates, and the days required per discipline. **A task's dates are what drive
-the capacity view**: a system change may run for four months while the work
-inside it is heavy in the first and thin afterwards, and dating each task is
-what makes that visible. A task left without dates falls back to running across
-the whole system change - the roadmap draws it dashed and the demand grid says
-so. Expand a system change on the roadmap with the small arrow to see its
-tasks.
+dates, and the days required per discipline. **A task's dates and effort are
+what drive the capacity view**: a system change may run for four months while
+the work inside it is heavy in the first and thin afterwards, and dating each
+task is what makes that visible. A task left without dates falls back to
+running across the whole system change - the roadmap draws it dashed and the
+demand grid says so. Expand a system change on the roadmap with the small arrow
+to see its tasks.
+
+**The roadmap is read in the order you arrange it.** Programmes, the system
+changes inside a programme, and the tasks inside a system change are each
+dragged into place by the grip at the left of the row. The order is stored, so
+everybody sees the same roadmap. Clear the filters and the search first: rows
+that are hidden cannot be put in order.
 
 ---
 
@@ -155,13 +168,13 @@ tasks.
 | **Roadmap**      | The Gantt. Executive View (programmes only) or Detailed View (everything, down to tasks). |
 | **Dependencies** | The dependency register (table) and the dependency map (diagram).        |
 | **Backlog**      | Requirements not yet on the roadmap, and *Move to Roadmap* when they are ready. |
-| **Resources**    | The monthly capacity plan, and demand against it.                        |
+| **Resources**    | The monthly capacity plan, and demand against it by month or by week.    |
 | **Data**         | Backup, export, import, restore, and the change history.                 |
 | **Settings**     | Owners, systems, statuses, priorities, streams, OKRs, key dates, quarters, port and more. Password protected. |
 
 Click any bar or title on the roadmap to open the record panel: summary, tasks,
-dependencies, risks and decisions, delivery (Fast MVP versus Standard), the
-resource roll-up, milestones, and that item's history.
+dependencies, risks and decisions, the resource roll-up, milestones, and that
+item's history.
 
 **Everything at a glance sits in one ribbon.** Programme, status, priority,
 phase, dates, systems, types, stream and owners run across the top of the
@@ -243,11 +256,22 @@ that plan. Each task's days are spread evenly across **its own** start and end
 dates, and counted against the stream on the task (or, if the task has none,
 the stream on the system change). A task without dates falls back to the dates
 of its system change, and the grid warns you how many did. Every cell shows
-`demand / capacity` in days; red means demand is above what is planned.
+`demand / capacity` in days; red means demand is above what is planned. The
+charts underneath show the same figures, one per discipline, across all
+streams.
 
-The demand source can be switched between the task plan and the Fast MVP or
-Standard estimates, so you can see the difference between the plan and either
-sizing. Nothing here moves a date - it is decision support only.
+**Read it by month or by week.** *Read by: Monthly / Weekly* switches the grid
+and the charts between whole months and calendar weeks. Capacity is still
+entered a month at a time - that is the unit people plan in - and a month's
+days are spread across its calendar days to work out a week's share, so the
+weeks in a month always add back up to that month.
+
+**Export to Excel** writes what is on screen - the same scenario, window,
+granularity and roadmap filters - as a CSV: one row per stream and discipline
+for capacity, demand and the spare between them. It downloads and a copy is
+kept in the `exports` folder.
+
+Nothing here moves a date - it is decision support only.
 
 **Backlog items can be carried too.** Give a backlog item expected dates, a
 team and an effort estimate on the Backlog screen, then tick it on the Capacity

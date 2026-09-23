@@ -33,6 +33,16 @@ function num(value, fallback) {
   return Number.isFinite(n) ? n : (fallback === undefined ? 0 : fallback);
 }
 
+/**
+ * Where a record sits in the hand-made running order of the roadmap. It is a
+ * plain number so a reorder is one write, and anything unordered sorts to the
+ * top in the order it was written.
+ */
+function sortIndex(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+}
+
 function isIsoDate(value) {
   if (!ISO_DATE.test(str(value))) return false;
   const d = new Date(value + 'T00:00:00Z');
@@ -85,6 +95,7 @@ function validateProgramme(input, context) {
   record.priority = trimmed(record.priority);
   record.colour = trimmed(record.colour) || '#2563eb';
   record.notes = str(record.notes);
+  record.sortIndex = sortIndex(record.sortIndex);
 
   if (record.colour && !/^#[0-9a-fA-F]{6}$/.test(record.colour)) {
     errors.push({ field: 'colour', message: 'Colour must be a hex value such as #2563eb.' });
@@ -155,7 +166,9 @@ function validateRoadmapItem(input, context) {
     return validateTask(child, errs, field, record.id);
   });
   delete record.tickets;
-  record.estimates = validateEstimates(record.estimates);
+  // Fast MVP / Standard estimates were removed: effort comes from the tasks.
+  delete record.estimates;
+  record.sortIndex = sortIndex(record.sortIndex);
 
   checkUniqueId(errors, record.id, ctx);
   stamp(record, ctx.existing, ctx.editor);
@@ -323,22 +336,6 @@ function idList(value, legacySingle) {
     out.push(id);
   });
   return out;
-}
-
-function validateEstimates(value) {
-  const src = (value && typeof value === 'object') ? value : {};
-  return { fast: estimateOption(src.fast), standard: estimateOption(src.standard) };
-}
-
-function estimateOption(option) {
-  const src = (option && typeof option === 'object') ? option : {};
-  const days = {};
-  const srcDays = (src.days && typeof src.days === 'object') ? src.days : {};
-  Object.keys(srcDays).forEach(function (key) {
-    const value = num(srcDays[key], 0);
-    days[key] = value < 0 ? 0 : value;
-  });
-  return { days: days, risk: str(src.risk), notes: str(src.notes) };
 }
 
 /* ------------------------------------------------------------------ */

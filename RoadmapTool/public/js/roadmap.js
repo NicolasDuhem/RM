@@ -18,7 +18,7 @@
     const programmeFilter = ui.filters.programme;
     const searchTerm = ui.filters.search;
 
-    const shownProgrammes = programmes.filter(function (programme) {
+    const shownProgrammes = programmes.slice().sort(compareItems).filter(function (programme) {
       if (programmeFilter && programme.id !== programmeFilter) return false;
       if (visibleProgrammeIds.has(programme.id)) return true;
       // Keep a programme visible when it matches the search itself, or when no
@@ -66,23 +66,43 @@
     const timeline = RM.gantt.buildTimeline(timelineItems.length ? timelineItems : allItems, ui.timescale);
     const rows = [];
 
+    // Rearranging a filtered list would move rows nobody can see, so the grips
+    // only appear on rows that are all on screen. Narrowing to one programme
+    // still shows every change inside it, so those stay draggable.
+    const canReorder = !itemFiltersActive() && !ui.filters.search;
+    const programmeSorter = (canReorder && !ui.filters.programme) ? RM.makeSortable({
+      group: 'programmes',
+      onReorder: function (order) { saveOrder('programmes', order, 'Programmes reordered.'); }
+    }) : null;
+
     shownProgrammes.forEach(function (programme) {
       const children = itemsFor(programme.id, visibleItems, allItems);
-      rows.push(programmeRow(programme, children, timeline));
+      rows.push(programmeRow(programme, children, timeline, programmeSorter));
       const collapsed = ui.roadmapMode === 'executive' || ui.collapsed[programme.id];
       if (!collapsed) {
         if (children.length === 0) {
           rows.push(emptyProgrammeRow(programme, timeline));
         } else {
+          // System changes are dragged within their own programme, and tasks
+          // within their own system change, so a drag can never move a record
+          // to a different parent by accident.
+          const itemSorter = canReorder ? RM.makeSortable({
+            group: 'items-' + programme.id,
+            onReorder: function (order) { saveItemOrder(programme.id, order); }
+          }) : null;
           children.forEach(function (item) {
-            rows.push(itemRow(item, timeline));
+            rows.push(itemRow(item, timeline, itemSorter));
             // Level 3: the tasks under this system change.
             if (ui.expandedItems[item.id]) {
               const tasks = item.tasks || [];
               if (tasks.length === 0) {
                 rows.push(emptyItemRow(item, timeline));
               } else {
-                tasks.forEach(function (task) { rows.push(taskRow(item, task, timeline)); });
+                const taskSorter = canReorder ? RM.makeSortable({
+                  group: 'tasks-' + item.id,
+                  onReorder: function (order) { saveTaskOrder(item, order); }
+                }) : null;
+                tasks.forEach(function (task) { rows.push(taskRow(item, task, timeline, taskSorter)); });
               }
             }
           });
@@ -94,7 +114,51 @@
     const marker = RM.gantt.todayMarker(timeline);
     if (marker) shell.querySelector('.gantt-head-time').appendChild(marker);
     root.appendChild(shell);
-    root.appendChild(legend());
+    root.appendChild(legend(canReorder));
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Saving a hand-made order                                          */
+  /* ---------------------------------------------------------------- */
+
+  /** Programmes and system changes: one reorder write for the whole file. */
+  function saveOrder(dataset, order, message) {
+    RM.api.reorder(dataset, order).then(function () {
+      RM.toast(message, 'success');
+      return RM.refresh();
+    }).catch(function (err) {
+      RM.handleError(err, 'Could not save the new order');
+      RM.renderView();
+    });
+  }
+
+  /**
+   * A drag inside one programme must not disturb the other programmes, so the
+   * dragged rows are slotted back into the full list in place.
+   */
+  function saveItemOrder(programmeId, order) {
+    const all = RM.records('roadmapItems').slice().sort(compareItems);
+    const queue = order.slice();
+    const next = all.map(function (item) {
+      return item.programmeId === programmeId ? queue.shift() : item.id;
+    });
+    saveOrder('roadmapItems', next.filter(Boolean), 'System changes reordered.');
+  }
+
+  /** Tasks live inside their system change, so this is an ordinary save. */
+  function saveTaskOrder(item, order) {
+    const byId = new Map((item.tasks || []).map(function (task) { return [task.id, task]; }));
+    const tasks = order.map(function (id) { return byId.get(id); }).filter(Boolean);
+    (item.tasks || []).forEach(function (task) {
+      if (tasks.indexOf(task) < 0) tasks.push(task);
+    });
+    RM.api.update('roadmapItems', item.id, Object.assign({}, item, { tasks: tasks })).then(function () {
+      RM.toast('Tasks reordered.', 'success');
+      return RM.refresh();
+    }).catch(function (err) {
+      RM.handleError(err, 'Could not save the new order');
+      RM.renderView();
+    });
   }
 
   function itemFiltersActive() {
@@ -109,11 +173,13 @@
     return list.slice().sort(compareItems);
   }
 
+  /**
+   * The running order is the one people arrange by hand with the drag handle.
+   * Records that have never been dragged all share an index, and the sort is
+   * stable, so they keep the order they were written in.
+   */
   function compareItems(a, b) {
-    if (a.startDate && b.startDate && a.startDate !== b.startDate) return a.startDate < b.startDate ? -1 : 1;
-    if (a.startDate && !b.startDate) return -1;
-    if (!a.startDate && b.startDate) return 1;
-    return String(a.title).localeCompare(String(b.title));
+    return (Number(a.sortIndex) || 0) - (Number(b.sortIndex) || 0);
   }
 
   function programmeMatchesSearch(programme, term) {
@@ -137,7 +203,10 @@
     const openGates = items.reduce(function (total, item) {
       return total + (item.gates || []).filter(function (g) { return g.status !== 'closed' && g.status !== 'decided'; }).length;
     }, 0);
-    const endingSoon = items.filter(function (i) { return i.endDate && i.endDate >= today && i.endDate <= in30; }).length;
+    const endingSoon = items.filter(function (i) {
+      const end = RM.itemRange(i).endDate;
+      return end && end >= today && end <= in30;
+    }).length;
     const upcoming = nextMilestone(items);
 
     return el('section', 'summary-strip', [
@@ -395,7 +464,7 @@
   /* Rows                                                              */
   /* ---------------------------------------------------------------- */
 
-  function programmeRow(programme, children, timeline) {
+  function programmeRow(programme, children, timeline, sorter) {
     const ui = RM.state.ui;
     const collapsed = ui.roadmapMode === 'executive' || ui.collapsed[programme.id];
     const range = RM.programmeRange(programme.id, children.length ? children : RM.itemsForProgramme(programme.id));
@@ -415,6 +484,7 @@
     }, collapsed ? '▶' : '▼');
 
     const left = el('div', 'gantt-left row-left row-left-programme', [
+      sorter ? sorter.handle(programme.id, 'Drag to reorder the programmes') : null,
       toggle,
       el('span', { class: 'programme-swatch', style: { background: colour } }),
       el('div', 'row-left-text', [
@@ -460,7 +530,8 @@
       });
     }
 
-    return el('div', 'gantt-row gantt-row-programme', [left, RM.gantt.timeCell(timeline, bars)]);
+    const row = el('div', 'gantt-row gantt-row-programme', [left, RM.gantt.timeCell(timeline, bars)]);
+    return sorter ? sorter.row(row, programme.id) : row;
   }
 
   /** Compact date for the dense programme row, e.g. 1 Sep 26. */
@@ -496,13 +567,14 @@
   }
 
   /** Level 3: one task under a system change. */
-  function taskRow(item, task, timeline) {
+  function taskRow(item, task, timeline, sorter) {
     const days = RM.effort.ofTask(task);
     const total = RM.effort.total(days);
     const stream = RM.streamOf(item, task);
 
     const left = el('div', 'gantt-left row-left row-left-task', [
       el('span', 'row-indent row-indent-deep'),
+      sorter ? sorter.handle(task.id, 'Drag to reorder the tasks in this system change') : null,
       el('div', 'row-left-text', [
         el('button', { class: 'row-title row-title-task', type: 'button', onclick: function () { RM.editor.editTask(item, task, function () { RM.renderView(); }); } }, task.name),
         el('div', 'row-meta', [
@@ -533,8 +605,9 @@
     // A task is drawn on its own dates. Without them it falls back to the
     // dates of its system change, shown faintly to say it is inherited.
     const ownDates = !!(task.startDate && task.endDate);
-    const startDate = ownDates ? task.startDate : item.startDate;
-    const endDate = ownDates ? task.endDate : item.endDate;
+    const fallback = RM.itemRange(item);
+    const startDate = ownDates ? task.startDate : fallback.startDate;
+    const endDate = ownDates ? task.endDate : fallback.endDate;
 
     const bars = [];
     const geometry = timeline.bar(startDate, endDate);
@@ -550,7 +623,8 @@
       bars.push(el('div', 'bar-placeholder', 'No dates'));
     }
 
-    return el('div', 'gantt-row gantt-row-task', [left, RM.gantt.timeCell(timeline, bars)]);
+    const row = el('div', 'gantt-row gantt-row-task', [left, RM.gantt.timeCell(timeline, bars)]);
+    return sorter ? sorter.row(row, task.id) : row;
   }
 
   function emptyItemRow(item, timeline) {
@@ -564,7 +638,7 @@
     ]);
   }
 
-  function itemRow(item, timeline) {
+  function itemRow(item, timeline, sorter) {
     const ui = RM.state.ui;
     const deps = RM.dependenciesFor(item.id);
     const dependencyCount = deps.dependsOn.length + deps.blocks.length;
@@ -577,6 +651,7 @@
 
     const left = el('div', 'gantt-left row-left row-left-item', [
       el('span', 'row-indent'),
+      sorter ? sorter.handle(item.id, 'Drag to reorder the system changes in this programme') : null,
       el('button', {
         class: 'row-toggle row-toggle-task',
         type: 'button',
@@ -607,20 +682,21 @@
       ])
     ]);
 
-    const geometry = timeline.bar(item.startDate, item.endDate);
+    const range = RM.itemRange(item);
+    const geometry = timeline.bar(range.startDate, range.endDate);
     const bars = [];
     if (geometry) {
       const colour = RM.options.colour('statuses', item.status, '#2563eb');
       const bar = el('div', {
-        class: 'bar bar-item' + (blocked ? ' bar-blocked' : ''),
+        class: 'bar bar-item' + (blocked ? ' bar-blocked' : '') + (range.derived ? ' bar-item-derived' : ''),
         style: { left: geometry.left + 'px', width: geometry.width + 'px', background: RM.fade(colour, 0.18), borderColor: colour, color: colour },
         dataset: { itemId: item.id }
       }, [
-        el('span', { class: 'bar-handle bar-handle-start', title: 'Drag to change the start date' }),
+        range.derived ? null : el('span', { class: 'bar-handle bar-handle-start', title: 'Drag to change the start date' }),
         // A label in a very short bar is unreadable - the tooltip carries it instead.
         el('span', 'bar-label', geometry.width >= 56 ? (item.shortTitle || item.title) : ''),
         dependencyCount ? el('span', 'bar-dep', '↔') : null,
-        el('span', { class: 'bar-handle bar-handle-end', title: 'Drag to change the end date' })
+        range.derived ? null : el('span', { class: 'bar-handle bar-handle-end', title: 'Drag to change the end date' })
       ]);
       attachTooltip(bar, function () { return itemTooltip(item, deps); });
       bar.addEventListener('click', function (event) {
@@ -628,7 +704,7 @@
         if (event.target.classList.contains('bar-handle')) return;
         RM.editor.openDetail(item.id);
       });
-      enableDrag(bar, item, timeline);
+      enableDrag(bar, item, range, timeline);
       bars.push(bar);
     } else {
       bars.push(el('div', 'bar-placeholder', [
@@ -644,7 +720,8 @@
       });
     }
 
-    return el('div', 'gantt-row gantt-row-item', [left, RM.gantt.timeCell(timeline, bars)]);
+    const row = el('div', 'gantt-row gantt-row-item', [left, RM.gantt.timeCell(timeline, bars)]);
+    return sorter ? sorter.row(row, item.id) : row;
 
     function indicator(glyph, title, onClick, extra) {
       return el('button', { class: 'indicator ' + (extra || ''), type: 'button', title: title, onclick: onClick }, glyph);
@@ -724,7 +801,13 @@
     return [
       el('strong', 'tooltip-title', item.title),
       programme ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Programme'), el('span', null, programme.name)]) : null,
-      el('div', 'tooltip-dates', RM.dates.formatDate(item.startDate) + ' → ' + RM.dates.formatDate(item.endDate)),
+      (function () {
+        const range = RM.itemRange(item);
+        return el('div', 'tooltip-dates', range.scheduled
+          ? RM.dates.formatDate(range.startDate) + ' → ' + RM.dates.formatDate(range.endDate)
+            + (range.derived ? ' (from its tasks)' : '')
+          : 'Not scheduled');
+      }()),
       el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Status'), el('span', null, RM.options.name('statuses', item.status) || 'Not set')]),
       (item.productOwners || []).length
         ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Product owner'), el('span', null, item.productOwners.join(', '))])
@@ -780,16 +863,20 @@
    * dates the form does and goes through the normal save (with the revision
    * check), so it can never bypass conflict protection.
    */
-  function enableDrag(bar, item, timeline) {
+  function enableDrag(bar, item, range, timeline) {
     bar.addEventListener('mousedown', function (event) {
       if (event.button !== 0) return;
-      const mode = event.target.classList.contains('bar-handle-start') ? 'start'
-        : event.target.classList.contains('bar-handle-end') ? 'end' : 'move';
+      // A change whose window comes from its tasks can be slid along, which
+      // takes every task with it, but it cannot be stretched: its length is
+      // decided by the work inside it.
+      const mode = range.derived ? 'move'
+        : event.target.classList.contains('bar-handle-start') ? 'start'
+          : event.target.classList.contains('bar-handle-end') ? 'end' : 'move';
       const startX = event.clientX;
       const originalLeft = parseFloat(bar.style.left);
       const originalWidth = parseFloat(bar.style.width);
-      const originalStart = item.startDate;
-      const originalEnd = item.endDate;
+      const originalStart = range.startDate;
+      const originalEnd = range.endDate;
       if (!originalStart || !originalEnd) return;
 
       let moved = false;
@@ -836,7 +923,7 @@
           RM.renderView();
           return;
         }
-        RM.api.update('roadmapItems', item.id, Object.assign({}, item, { startDate: nextStart, endDate: nextEnd }))
+        RM.api.update('roadmapItems', item.id, shifted(item, range, nextStart, nextEnd))
           .then(function () {
             RM.toast('Moved "' + item.title + '" to ' + RM.dates.formatDate(nextStart) + ' - ' + RM.dates.formatDate(nextEnd) + '.', 'success');
             return RM.refresh();
@@ -849,6 +936,31 @@
 
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  /**
+   * The record a drag should save. When the window came from the tasks, the
+   * whole task list slides by the same number of days, so the change keeps
+   * its shape and the capacity view still reflects when each piece happens.
+   */
+  function shifted(item, range, nextStart, nextEnd) {
+    if (!range.derived) {
+      return Object.assign({}, item, { startDate: nextStart, endDate: nextEnd });
+    }
+    const days = RM.dates.daysBetween(RM.dates.parseIso(range.startDate), RM.dates.parseIso(nextStart));
+    return Object.assign({}, item, {
+      // The placeholder window moves with them, so it still reads sensibly if
+      // the tasks ever lose their dates.
+      startDate: nextStart,
+      endDate: nextEnd,
+      tasks: (item.tasks || []).map(function (task) {
+        if (!task.startDate || !task.endDate) return task;
+        return Object.assign({}, task, {
+          startDate: shift(task.startDate, days),
+          endDate: shift(task.endDate, days)
+        });
+      })
     });
   }
 
@@ -868,19 +980,22 @@
 
   /* ---------------------------------------------------------------- */
 
-  function legend() {
+  function legend(canReorder) {
     return el('div', 'legend', [
       el('span', 'legend-item', [el('span', 'legend-swatch legend-programme'), 'Programme (earliest child start to latest child end)']),
-      el('span', 'legend-item', [el('span', 'legend-swatch legend-item-bar'), 'System change (coloured by status)']),
-      el('span', 'legend-item', [el('span', 'legend-swatch legend-task-bar'), 'Task (runs with its system change)']),
+      el('span', 'legend-item', [el('span', 'legend-swatch legend-item-bar'), 'System change (from the first start to the last end of its tasks)']),
+      el('span', 'legend-item', [el('span', 'legend-swatch legend-task-bar'), 'Task (on its own dates)']),
       el('span', 'legend-item', [el('span', 'legend-swatch legend-milestone'), 'Milestone']),
       el('span', 'legend-item', [el('span', 'legend-swatch legend-today'), 'Today']),
       RM.state.ui.showKeyDates && RM.keyDates().length
         ? el('span', 'legend-item', [el('span', 'legend-swatch legend-key-date'), 'Key date (maintained in Settings)'])
         : null,
       RM.state.ui.roadmapMode === 'detailed'
-        ? el('span', 'legend-item muted', 'Drag a bar to move it, or drag its edges to resize. Every change is saved with the same conflict check as the form.')
-        : el('span', 'legend-item muted', 'Executive view shows programmes only. Switch to Detailed View to see and edit the system changes underneath.')
+        ? el('span', 'legend-item muted', 'Drag a bar to move it. A change whose dates come from its tasks moves them all together; one without tasks can also be resized by its edges.')
+        : el('span', 'legend-item muted', 'Executive view shows programmes only. Switch to Detailed View to see and edit the system changes underneath.'),
+      el('span', 'legend-item muted', canReorder
+        ? 'Use the grip at the left of a row to drag programmes, system changes and tasks into the order you want.'
+        : 'Clear the filters and the search to rearrange rows by hand.')
     ]);
   }
 

@@ -23,6 +23,17 @@ function stringify(columns, rows) {
   return '﻿' + [header].concat(body).join('\r\n') + '\r\n';
 }
 
+/**
+ * The same CSV, but from a plain grid of values. Used by the resources sheet,
+ * whose columns are months or weeks and so are not known in advance.
+ */
+function stringifyGrid(rows) {
+  const body = (rows || []).map(function (row) {
+    return (row || []).map(escapeCell).join(',');
+  });
+  return '\ufeff' + body.join('\r\n') + '\r\n';
+}
+
 function parse(text) {
   const input = String(text || '').replace(/^﻿/, '');
   const rows = [];
@@ -62,4 +73,5 @@ function parse(text) {
   return { headers: headers, rows: records };
 }
 
-module.exports = { stringify: stringify, parse: parse, escapeCell: escapeCell };
+module.exports = {
+  stringifyGrid: stringifyGrid, stringify: stringify, parse: parse, escapeCell: escapeCell };

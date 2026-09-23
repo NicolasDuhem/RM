@@ -8,7 +8,7 @@
  *   date   - ISO date (YYYY-MM-DD)
  *   bool   - Yes / No
  *   option - stored as a settings id, shown as the settings name
- *   fast/standard days - effort per resource type
+ *   number - a plain number, such as days of effort
  */
 
 function baseSchema(dataset) {
@@ -58,11 +58,7 @@ function baseSchema(dataset) {
         col('Trade Offs', 'tradeOffs'),
         col('POC Notes', 'pocNotes'),
         col('Comments', 'comments'),
-        col('Notes', 'notes'),
-        col('Fast MVP Risk', 'estimates.fast.risk'),
-        col('Fast MVP Notes', 'estimates.fast.notes'),
-        col('Standard Risk', 'estimates.standard.risk'),
-        col('Standard Notes', 'estimates.standard.notes')
+        col('Notes', 'notes')
       ];
     case 'dependencies':
       return [
@@ -120,16 +116,7 @@ function schemaFor(dataset, settings) {
       return { header: type.name + ' Days', field: 'days.' + type.id, kind: 'number' };
     }));
   }
-  if (dataset !== 'roadmapItems') return base;
-
-  const extra = [];
-  resourceTypes.forEach(function (type) {
-    extra.push({ header: 'Fast ' + type.name + ' Days', field: 'estimates.fast.days.' + type.id, kind: 'number' });
-  });
-  resourceTypes.forEach(function (type) {
-    extra.push({ header: 'Standard ' + type.name + ' Days', field: 'estimates.standard.days.' + type.id, kind: 'number' });
-  });
-  return base.concat(extra);
+  return base;
 }
 
 function getPath(record, field) {

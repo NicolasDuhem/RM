@@ -31,7 +31,7 @@ function check(name, ok, detail) {
   });
   /** A cell of the panel ribbon, found by its label. */
   const ribbon = (page, label) => page.locator('.modal .ribbon-cell')
-    .filter({ has: page.locator('.ribbon-label', { hasText: new RegExp('^' + label + '$') }) });
+    .filter({ has: page.locator('.ribbon-label', { hasText: new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }) });
   const page = await context.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
   const errors = [];
@@ -67,15 +67,16 @@ function check(name, ok, detail) {
   check('editing swaps values for inputs in place',
     await page.locator('.modal .ribbon-cell input, .modal .ribbon-cell select, .modal .ribbon-cell .ms-control').count() >= 10);
   check('the title is edited where it is read', await page.locator('.modal .hero-input-title').count() === 1);
-  await ribbon(page, 'End').locator('input').fill('2026-01-01');
-  await page.locator('.panel-footer .button-primary', { hasText: 'Save changes' }).click();
-  await page.waitForTimeout(700);
-  check('a bad date is flagged on the field itself', await page.locator('.modal .field-invalid').count() === 1);
+  // This change has dated tasks, so its window is theirs and cannot be typed over.
+  check('a change with dated tasks shows its window as coming from them',
+    await ribbon(page, 'Start (from tasks)').count() === 1
+    && await ribbon(page, 'Start (from tasks)').locator('input').count() === 0);
   await page.locator('.panel-footer .button', { hasText: 'Cancel' }).click();
   await page.waitForTimeout(400);
   check('cancel returns to reading', await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).count() === 1);
   const tabs = await page.locator('.modal .tab').allTextContents();
   check('the scope tab is gone', tabs.indexOf('Scope') < 0, tabs.join(','));
+  check('the delivery tab is gone with the estimates', tabs.indexOf('Delivery') < 0, tabs.join(','));
   check('tasks are a tab of their own', tabs.indexOf('Tasks') >= 0);
   await page.locator('.modal .icon-button').first().click();
   await page.waitForTimeout(300);
@@ -94,7 +95,7 @@ function check(name, ok, detail) {
 
   await page.locator('.button', { hasText: '+ Add System Change' }).first().click();
   await page.waitForTimeout(400);
-  check('a new system change uses the same panel', await page.locator('.modal .tabs .tab').count() === 8);
+  check('a new system change uses the same panel', await page.locator('.modal .tabs .tab').count() === 7);
   check('tabs needing a saved record are locked', await page.locator('.tab-locked').count() >= 4);
   await page.locator('.modal .hero-input-title').fill('Multi select change');
   await ribbon(page, 'Programme').locator('select').selectOption({ label: 'UI Programme' });
@@ -111,8 +112,14 @@ function check(name, ok, detail) {
   await page.locator('.modal-title').first().click();
   await page.waitForTimeout(200);
   await ribbon(page, 'Stream').locator('select').selectOption({ label: 'B2B' });
-  await ribbon(page, 'Start').locator('input').fill('2026-10-01');
-  await ribbon(page, 'End').locator('input').fill('2026-12-31');
+  check('a change with no tasks yet keeps a planned window of its own',
+    await ribbon(page, 'Planned start').locator('input').count() === 1);
+  await ribbon(page, 'Planned start').locator('input').fill('2026-10-01');
+  await ribbon(page, 'Planned end').locator('input').fill('2026-01-01');
+  await page.locator('.panel-footer .button-primary').click();
+  await page.waitForTimeout(700);
+  check('a bad date is flagged on the field itself', await page.locator('.modal .field-invalid').count() === 1);
+  await ribbon(page, 'Planned end').locator('input').fill('2026-12-31');
   await page.locator('.panel-footer .button-primary').click();
   await page.waitForTimeout(1000);
   const stored = await page.evaluate(() => {
@@ -268,14 +275,28 @@ function check(name, ok, detail) {
   console.log('\nDragging');
   const bar = page.locator('.bar-item').first();
   const box = await bar.boundingBox();
-  const before = await page.evaluate(() => window.RM.records('roadmapItems').find(r => r.id === 'RM-0001').startDate);
+  const readBar = () => page.evaluate(() => {
+    const item = window.RM.records('roadmapItems').find(r => r.id === 'RM-0001');
+    return { range: window.RM.itemRange(item), tasks: (item.tasks || []).map(t => t.startDate).join(',') };
+  });
+  const before = await readBar();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 95, box.y + box.height / 2, { steps: 12 });
   await page.mouse.up();
   await page.waitForTimeout(1200);
-  const after = await page.evaluate(() => window.RM.records('roadmapItems').find(r => r.id === 'RM-0001').startDate);
-  check('dragging a bar moves the dates', before !== after, before + ' -> ' + after);
+  const after = await readBar();
+  check('dragging a bar moves the dates',
+    before.range.startDate !== after.range.startDate,
+    before.range.startDate + ' -> ' + after.range.startDate);
+  // The window comes from the tasks, so sliding the bar has to slide them,
+  // every one by the same number of days.
+  const dayGap = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+  const shiftOfWindow = dayGap(before.range.startDate, after.range.startDate);
+  const taskShifts = after.tasks.split(',').map((date, i) => dayGap(before.tasks.split(',')[i], date));
+  check('and it carries the tasks with it, keeping their shape',
+    shiftOfWindow !== 0 && taskShifts.every(gap => gap === shiftOfWindow),
+    before.tasks + ' -> ' + after.tasks + ' (window moved ' + shiftOfWindow + ')');
 
   console.log('\nBacklog');
   await page.locator('.nav-link', { hasText: 'Backlog' }).click();
@@ -369,9 +390,110 @@ function check(name, ok, detail) {
     added && added.oct > 40 && added.oct < 44, JSON.stringify(added));
   check('and the months after it stay quiet',
     added && added.nov < 2 && added.dec < 2, JSON.stringify(added));
-  await page.locator('.segment', { hasText: 'Standard estimate' }).click();
+  check('there is no estimate to switch to any more',
+    await page.locator('.segment', { hasText: 'Fast MVP' }).count() === 0
+    && await page.locator('.segment', { hasText: 'Standard estimate' }).count() === 0);
+
+  // The same plan, read a week at a time. A month's days are shared out across
+  // its calendar days, so the weeks in a month add back up to the month.
+  const monthly = await page.evaluate(() => {
+    const row = Array.from(document.querySelectorAll('.table-demand tbody tr'))
+      .find(r => r.querySelector('.row-header') && r.querySelector('.row-header').textContent.trim() === 'Development');
+    return Array.from(row.querySelectorAll('.cell-capacity-value')).map(c => Number(c.textContent.replace('/ ', '')));
+  });
+  await page.locator('.segment', { hasText: 'Weekly' }).click();
+  await page.waitForTimeout(900);
+  check('demand can be read week by week', await page.locator('.segment-active', { hasText: 'Weekly' }).count() === 1);
+  const weekHeads = await page.locator('.table-demand thead th.numeric').allTextContents();
+  check('the columns become weeks', weekHeads.length === 13 && /^\d+ \w+$/.test(weekHeads[0]), weekHeads.slice(0, 3).join(' | '));
+  const weekly = await page.evaluate(() => {
+    const row = Array.from(document.querySelectorAll('.table-demand tbody tr'))
+      .find(r => r.querySelector('.row-header') && r.querySelector('.row-header').textContent.trim() === 'Development');
+    return Array.from(row.querySelectorAll('.cell-capacity-value')).map(c => Number(c.textContent.replace('/ ', '')));
+  });
+  check('a week carries a share of the month it sits in, never the whole month',
+    weekly.every(v => v > 0 && v < monthly[0]), JSON.stringify(weekly.slice(0, 4)) + ' vs month ' + monthly[0]);
+  check('the charts follow the same periods',
+    await page.locator('.chart-block').first().locator('.chart-col').count() === 13);
+
+  const [sheet] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.button', { hasText: 'Export to Excel' }).click()
+  ]);
+  check('the resources sheet exports', /resources_.*\.csv/.test(sheet.suggestedFilename()), sheet.suggestedFilename());
+  const sheetText = require('fs').readFileSync(await sheet.path(), 'utf8');
+  check('the sheet says how it was read', sheetText.indexOf('Read by,Week') > 0);
+  check('the sheet carries capacity, demand and what is spare',
+    sheetText.indexOf('Capacity (days)') > 0 && sheetText.indexOf('Demand (days)') > 0 && sheetText.indexOf('Spare (days)') > 0);
+  await page.locator('.segment', { hasText: 'Monthly' }).click();
   await page.waitForTimeout(600);
-  check('the demand source can be switched', await page.locator('.segment-active', { hasText: 'Standard estimate' }).count() === 1);
+
+  console.log('\nArranging the roadmap by hand');
+  await page.locator('.nav-link', { hasText: 'Roadmap' }).click();
+  await page.waitForTimeout(700);
+  // Collapse first so the programme rows sit together and nothing scrolls away.
+  await page.locator('.button', { hasText: 'Collapse all' }).click();
+  await page.waitForTimeout(600);
+
+  const programmeOrder = () => page.evaluate(() =>
+    window.RM.records('programmes').slice()
+      .sort((a, b) => (Number(a.sortIndex) || 0) - (Number(b.sortIndex) || 0))
+      .map(p => p.id));
+  const beforeProgrammes = await programmeOrder();
+  const programmeRows = page.locator('.gantt-row-programme');
+  await programmeRows.nth(2).locator('.drag-handle')
+    .dragTo(programmeRows.nth(0), { targetPosition: { x: 40, y: 4 } });
+  await page.waitForTimeout(1200);
+  const afterProgrammes = await programmeOrder();
+  check('a programme can be dragged into a different place',
+    afterProgrammes[0] === beforeProgrammes[2] && afterProgrammes[1] === beforeProgrammes[0],
+    JSON.stringify(beforeProgrammes) + ' -> ' + JSON.stringify(afterProgrammes));
+  check('and the new order is stored, not just drawn', await page.evaluate(() => {
+    const order = window.RM.records('programmes').map(p => Number(p.sortIndex));
+    return order.length > 1 && order.every(n => Number.isFinite(n)) && new Set(order).size === order.length;
+  }));
+
+  // System changes are arranged inside their own programme.
+  await page.locator('.gantt-row-programme').filter({ hasText: 'Customer / Dealer Master' })
+    .locator('.row-toggle').first().click();
+  await page.waitForTimeout(600);
+  const itemOrder = () => page.evaluate(() =>
+    window.RM.records('roadmapItems').filter(i => i.programmeId === 'PRG-0001')
+      .slice().sort((a, b) => (Number(a.sortIndex) || 0) - (Number(b.sortIndex) || 0))
+      .map(i => i.id));
+  const beforeItems = await itemOrder();
+  const itemRows = page.locator('.gantt-row-item');
+  await itemRows.nth(1).locator('.drag-handle').dragTo(itemRows.nth(0), { targetPosition: { x: 40, y: 4 } });
+  await page.waitForTimeout(1200);
+  const afterItems = await itemOrder();
+  check('a system change can be moved within its programme',
+    afterItems[0] === beforeItems[1] && afterItems[1] === beforeItems[0],
+    JSON.stringify(beforeItems) + ' -> ' + JSON.stringify(afterItems));
+  check('the other programmes are left alone', await page.evaluate(() =>
+    window.RM.records('roadmapItems').filter(i => i.programmeId !== 'PRG-0001').length > 0));
+
+  // Tasks are arranged inside their own system change.
+  const taskItemId = beforeItems[1];
+  await page.locator('.gantt-row-item').first().locator('.row-toggle-task').click();
+  await page.waitForTimeout(600);
+  const taskOrder = () => page.evaluate((id) =>
+    (window.RM.itemById(id).tasks || []).map(t => t.id), taskItemId);
+  const beforeTasks = await taskOrder();
+  const taskRows = page.locator('.gantt-row-task');
+  await taskRows.nth(1).locator('.drag-handle').dragTo(taskRows.nth(0), { targetPosition: { x: 40, y: 4 } });
+  await page.waitForTimeout(1200);
+  const afterTasks = await taskOrder();
+  check('a task can be moved within its system change',
+    afterTasks[0] === beforeTasks[1] && afterTasks[1] === beforeTasks[0],
+    JSON.stringify(beforeTasks) + ' -> ' + JSON.stringify(afterTasks));
+
+  // Rows that a filter has hidden cannot be put in order, so the grips go.
+  await page.locator('.search-input').fill('accreditation');
+  await page.waitForTimeout(900);
+  check('a filtered roadmap offers no grips', await page.locator('.drag-handle').count() === 0);
+  await page.locator('.search-input').fill('');
+  await page.waitForTimeout(900);
+  check('and they come back once the filter is cleared', await page.locator('.drag-handle').count() > 0);
 
   console.log('\nSettings');
   await page.locator('.nav-link', { hasText: 'Settings' }).click();

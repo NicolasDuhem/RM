@@ -47,7 +47,8 @@ rather than duplicated, so several people can draft into the same one.
 **Create only these three things: programmes, system changes and tasks.**
 
 * A **programme** is a business outcome or a larger initiative.
-* A **system change** is a deliverable underneath a programme, and it carries the dates.
+* A **system change** is a deliverable underneath a programme. Its window
+  is worked out from the tasks inside it, not typed in.
 * A **task** is the work underneath a system change. It carries the effort
   and its own dates, and together those drive the capacity view.
 
@@ -72,12 +73,14 @@ change and the programme add theirs up automatically.
 **Dates**
 
 * Written as `"YYYY-MM-DD"`, for example `"2027-03-01"`.
-* System changes and tasks both have dates. **Give every task its own**
-  **`startDate` and `endDate`** - the capacity view spreads a task's days
-  evenly across them, so tasks dated properly are what makes a heavy first
-  month look heavy. A task left without dates falls back to running across
-  the whole system change, which flattens the picture.
-* A task's dates normally sit inside its system change's dates.
+* **Dates belong on the tasks.** Give every task its own `startDate` and
+  `endDate`. The capacity view spreads a task's days evenly across them,
+  so tasks dated properly are what makes a heavy first month look heavy.
+* A system change runs from the first start to the last end of its tasks.
+  You do not date it yourself; the dates on it are only a placeholder for
+  a change whose tasks are not dated yet.
+* A task left without dates falls back to running across the whole system
+  change, which flattens the picture. Avoid it.
 * `endDate` must be the same as, or after, `startDate`.
 * A programme never has dates: the tool works them out from its system changes.
 * If the timing is genuinely unknown, use `""` for both and say so in the notes.
@@ -160,8 +163,8 @@ master data, or with an empty string or list when nothing fits.
       "stream": "<id from settings.resourceStreams>",
       "status": "<id from settings.statuses>",
       "priority": "<id from settings.priorities>",
-      "startDate": "2027-03-01",
-      "endDate": "2027-05-31",
+      "startDate": "",
+      "endDate": "",
       "targetDate": "",
       "productOwners": [],
       "deliveryOwners": [],
@@ -241,7 +244,7 @@ master data, or with an empty string or list when nothing fits.
 | `subArea` | no | Free text, for example "Accreditation" or "Order to cash". |
 | `stream` | no | An id from `settings.resourceStreams`: whose capacity this consumes. |
 | `status`, `priority` | no | Ids from the matching settings list. |
-| `startDate`, `endDate` | no | ISO dates. These place the bar on the roadmap. |
+| `startDate`, `endDate` | no | ISO dates, used **only** while the change has no dated tasks. Once its tasks have dates, the change runs from the first task start to the last task end and these are ignored. Give the tasks dates and leave these empty. |
 | `targetDate` | no | A date it is aimed at, when that differs from the end date. |
 | `productOwners`, `deliveryOwners` | no | Names from the matching settings list, or `[]`. |
 | `description` | no | What the change is. |
@@ -319,7 +322,7 @@ everything else comes from the master data.
 * Every status, priority, system, type, stream, milestone name, OKR and person appears in the master data file, spelled exactly as it is there.
 * Nothing was invented to fill a gap; gaps are empty and explained in the notes.
 * Every task has `days`, keyed by the resource type ids.
-* Every task has its own `startDate` and `endDate`, inside its system change's dates.
+* Every task has its own `startDate` and `endDate`; the system change itself needs none.
 * Every system change names a programme.
 * Dates are `YYYY-MM-DD`, and no end date is before its start date.
 * It is valid JSON: double quotes throughout, no trailing commas, no comments.
@@ -329,8 +332,8 @@ everything else comes from the master data.
 > Here is our roadmap JSON guide and our master data file. Using only the
 > ids and names found in the master data, draft a programme called
 > "Dealer Self-Service" with three system changes and four to six tasks
-> each, running from March to September 2027. Give every task its own start
-> and end dates inside its system change, and estimate the days for each
-> task against our resource types. Where nothing in the master data fits -
+> each, running from March to September 2027. Date every task, since the
+> system changes take their dates from those, and estimate the days for
+> each task against our resource types. Where nothing in the master data fits -
 > a person, a stream, a system - leave the field empty and note why.
 > Answer with the JSON only.

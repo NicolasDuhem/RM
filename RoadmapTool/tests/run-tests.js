@@ -178,6 +178,7 @@ async function run() {
     record: {
       title: 'Written by an older version', programmeId: 'PRG-0001',
       systemArea: 'salesforce', type: 'system-change', scope: 'old scope', outOfScope: 'old',
+      estimates: { fast: { days: { dev: 5 }, risk: 'high' }, standard: { days: { dev: 20 }, risk: '' } },
       productOwner: 'Sarah', businessOwner: 'Nicolas', technicalOwner: 'Data team', deliveryOwner: 'Jake',
       tickets: [{ id: 'TKT-9', title: 'Old ticket', externalReference: 'JIRA-9' }]
     }
@@ -185,6 +186,8 @@ async function run() {
   equal('an older single system is folded into the list', legacy.body.record.systemAreas[0], 'salesforce');
   equal('an older single type is folded into the list', legacy.body.record.types[0], 'system-change');
   check('the removed scope fields are dropped', legacy.body.record.scope === undefined && legacy.body.record.outOfScope === undefined);
+  check('the Fast MVP and Standard estimates are dropped too',
+    legacy.body.record.estimates === undefined, JSON.stringify(legacy.body.record.estimates));
   equal('older tickets become tasks', legacy.body.record.tasks[0].name, 'Old ticket');
   check('older single owners fold into the product owner list',
     legacy.body.record.productOwners.join(',') === 'Sarah,Nicolas', legacy.body.record.productOwners.join(','));
@@ -261,6 +264,53 @@ async function run() {
     record: { fromItemId: 'RM-0001', toItemId: 'RM-0002' }
   });
   equal('a duplicate can be saved deliberately', accepted.status, 200);
+
+  /* -------------------------------------------------- */
+  process.stdout.write('\nArranging the roadmap by hand\n');
+  rev = await revisions();
+  const extraProgramme = await api('POST', '/api/dataset/programmes/create', {
+    revision: rev.programmes, editor: 'Tester', record: { name: 'Second programme' }
+  });
+  equal('a second programme is created', extraProgramme.status, 200);
+  check('a new record joins at the end of the order',
+    Number(extraProgramme.body.record.sortIndex) > 0, String(extraProgramme.body.record.sortIndex));
+
+  rev = await revisions();
+  const ordered = await api('POST', '/api/dataset/programmes/reorder', {
+    revision: rev.programmes, editor: 'Tester',
+    order: [extraProgramme.body.record.id, 'PRG-0001']
+  });
+  equal('a new running order is saved', ordered.status, 200);
+  equal('and covers every record', ordered.body.count, 2);
+  const reordered = await records('programmes');
+  equal('the dragged record comes first now', reordered[0].id, extraProgramme.body.record.id);
+  check('and the order is numbered from the top',
+    reordered[0].sortIndex === 0 && reordered[1].sortIndex === 1,
+    JSON.stringify(reordered.map(function (r) { return r.sortIndex; })));
+
+  const staleOrder = await api('POST', '/api/dataset/programmes/reorder', {
+    revision: rev.programmes, editor: 'Tester', order: ['PRG-0001', extraProgramme.body.record.id]
+  });
+  equal('a reorder from a stale revision is refused, never silently applied', staleOrder.status, 409);
+
+  rev = await revisions();
+  const partial = await api('POST', '/api/dataset/programmes/reorder', {
+    revision: rev.programmes, editor: 'Tester', order: ['PRG-0001']
+  });
+  equal('a partial order is accepted', partial.status, 200);
+  equal('and nothing is lost: the rest keep their place at the end', partial.body.count, 2);
+
+  rev = await revisions();
+  equal('an empty order is refused',
+    (await api('POST', '/api/dataset/programmes/reorder', { revision: rev.programmes, editor: 'T', order: [] })).status, 400);
+  equal('a dataset that is not arranged by hand is refused',
+    (await api('POST', '/api/dataset/dependencies/reorder', { revision: rev.dependencies, editor: 'T', order: ['x'] })).status, 400);
+
+  const tidied = await api('POST', '/api/programmes/delete', {
+    id: extraProgramme.body.record.id, cascade: false, editor: 'Tester', revisions: await revisions()
+  });
+  equal('the spare programme is removed again', tidied.status, 200);
+  equal('leaving the roadmap as it was', (await records('programmes')).length, 1);
 
   /* -------------------------------------------------- */
   process.stdout.write('\nDeleting\n');
@@ -422,6 +472,18 @@ async function run() {
   check('the roadmap CSV has one column per owner list',
     itemCsv.indexOf('Product Owners,Delivery Owners') > 0);
   check('the roadmap CSV no longer has a scope column', itemCsv.indexOf('Out Of Scope') < 0);
+  check('nor any Fast MVP or Standard estimate columns',
+    itemCsv.indexOf('Fast ') < 0 && itemCsv.indexOf('Standard ') < 0, itemCsv.split('\n')[0]);
+
+  const sheet = await api('POST', '/api/export/resources', {
+    rows: [['Scenario', 'Scenario A'], [], ['Stream', 'Discipline', 'Measure', '2027-01'],
+      ['B2B', 'Development', 'Capacity (days)', 21]]
+  });
+  equal('the resources sheet exports as CSV', sheet.status, 200);
+  check('it carries what was on screen', String(sheet.body).indexOf('B2B,Development,Capacity (days),21') > 0);
+  check('a comma in a name is quoted, so Excel reads one column',
+    String((await api('POST', '/api/export/resources', { rows: [['ERP HQ, EU', 1]] })).body).indexOf('"ERP HQ, EU",1') > 0);
+  equal('an empty sheet is refused', (await api('POST', '/api/export/resources', { rows: [] })).status, 400);
 
   /* -------------------------------------------------- */
   process.stdout.write('\nBacklog planning\n');
@@ -513,6 +575,10 @@ async function run() {
   check('its tasks were given ids', (addedItem.tasks || []).every(function (task) { return /^TSK-\d{4}$/.test(task.id); }));
   check('its tasks keep their effort', addedItem.tasks[0].days.dev > 0);
   equal('its tasks keep their own dates', addedItem.tasks[0].startDate, '2027-03-01');
+  check('an imported record lands at the bottom of the running order, never on top of it',
+    (await records('roadmapItems')).every(function (item) {
+      return item.id === addedItem.id || Number(item.sortIndex) < Number(addedItem.sortIndex);
+    }), JSON.stringify((await records('roadmapItems')).map(function (i) { return i.id + '=' + i.sortIndex; })));
 
   const reuse = await api('POST', '/api/import/add', {
     editor: 'Tester',

@@ -304,15 +304,6 @@ window.RM = (function () {
       return out;
     },
 
-    /** Days held in one of the item's Fast MVP / Standard estimates. */
-    ofEstimate: function (item, mode) {
-      const estimate = ((item && item.estimates) || {})[mode] || {};
-      const days = estimate.days || {};
-      const out = {};
-      RM.effort.resourceTypes().forEach(function (type) { out[type.id] = Number(days[type.id]) || 0; });
-      return out;
-    },
-
     total: function (days) {
       return Object.keys(days || {}).reduce(function (sum, key) { return sum + (Number(days[key]) || 0); }, 0);
     },
@@ -410,6 +401,12 @@ window.RM = (function () {
       return request('POST', '/api/dataset/' + dataset + '/update', Object.assign({
         revision: RM.revision(dataset), id: id, record: record, editor: RM.editorName()
       }, extra || {}));
+    },
+    /** Saves a new running order for a whole dataset in one write. */
+    reorder: function (dataset, order) {
+      return request('POST', '/api/dataset/' + dataset + '/reorder', {
+        revision: RM.revision(dataset), order: order, editor: RM.editorName()
+      });
     },
     remove: function (dataset, id, extra) {
       return request('POST', '/api/dataset/' + dataset + '/delete', Object.assign({
@@ -977,14 +974,37 @@ window.RM = (function () {
     return RM.records('roadmapItems').filter(function (i) { return i.programmeId === programmeId; });
   };
 
+  /**
+   * How long a system change takes is decided by the work inside it, so its
+   * dates are the span of its dated tasks. The dates stored on the change
+   * itself are only a placeholder, used while it has no dated tasks yet -
+   * which is how a change can still be sketched onto the roadmap first.
+   */
+  RM.itemRange = function (item) {
+    let start = '';
+    let end = '';
+    ((item && item.tasks) || []).forEach(function (task) {
+      if (!task.startDate || !task.endDate || task.endDate < task.startDate) return;
+      if (!start || task.startDate < start) start = task.startDate;
+      if (!end || task.endDate > end) end = task.endDate;
+    });
+    if (start && end) {
+      return { startDate: start, endDate: end, scheduled: true, derived: true };
+    }
+    const own = (item && item.startDate) || '';
+    const ownEnd = (item && item.endDate) || '';
+    return { startDate: own, endDate: ownEnd, scheduled: !!(own && ownEnd), derived: false };
+  };
+
   /** Programme dates are always derived from their children, never stored. */
   RM.programmeRange = function (programmeId, items) {
     const children = items || RM.itemsForProgramme(programmeId);
     let start = '';
     let end = '';
     children.forEach(function (child) {
-      if (child.startDate && (!start || child.startDate < start)) start = child.startDate;
-      if (child.endDate && (!end || child.endDate > end)) end = child.endDate;
+      const range = RM.itemRange(child);
+      if (range.startDate && (!start || range.startDate < start)) start = range.startDate;
+      if (range.endDate && (!end || range.endDate > end)) end = range.endDate;
     });
     return { startDate: start, endDate: end, scheduled: !!(start && end) };
   };
@@ -1110,8 +1130,11 @@ window.RM = (function () {
     if (filters.okr && !itemUsesOkr(item, filters.okr)) return false;
     if (filters.productOwner && (item.productOwners || []).indexOf(filters.productOwner) < 0) return false;
     if (filters.deliveryOwner && (item.deliveryOwners || []).indexOf(filters.deliveryOwner) < 0) return false;
-    if (filters.dateFrom && item.endDate && item.endDate < filters.dateFrom) return false;
-    if (filters.dateTo && item.startDate && item.startDate > filters.dateTo) return false;
+    if (filters.dateFrom || filters.dateTo) {
+      const range = RM.itemRange(item);
+      if (filters.dateFrom && range.endDate && range.endDate < filters.dateFrom) return false;
+      if (filters.dateTo && range.startDate && range.startDate > filters.dateTo) return false;
+    }
     if (filters.search && !matchesSearch(item, filters.search)) return false;
     return true;
   };
@@ -1195,6 +1218,103 @@ window.RM = (function () {
       el('p', null, message),
       action || null
     ]);
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* Rearranging rows by hand                                          */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Makes a set of rows draggable so they can be put in the order people want
+   * to read them in. It works on ids only: the caller is handed the new order
+   * and decides how to save it, so a drag always goes through a normal,
+   * revision-checked write.
+   *
+   * @param {Object} spec
+   *  - group      a string; only rows in the same group can be dropped on each other
+   *  - onReorder  called with the new array of ids once a row is dropped
+   */
+  RM.makeSortable = function (spec) {
+    const group = spec.group;
+    let dragId = '';
+
+    return {
+      /** The little grip that starts a drag. */
+      handle: function (id, title) {
+        const grip = el('span', {
+          class: 'drag-handle', draggable: 'true', title: title || 'Drag to reorder',
+          'aria-label': title || 'Drag to reorder'
+        }, '\u2630');
+        grip.addEventListener('dragstart', function (event) {
+          dragId = id;
+          const row = grip.closest('[data-sort-id]');
+          if (row) row.classList.add('row-dragging');
+          if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            // Firefox refuses to start a drag without something on the clipboard.
+            event.dataTransfer.setData('text/plain', id);
+            if (row) event.dataTransfer.setDragImage(row, 16, 12);
+          }
+        });
+        grip.addEventListener('dragend', function () {
+          dragId = '';
+          clearMarks();
+        });
+        return grip;
+      },
+
+      /** Marks a row as a place a dragged row can land. */
+      row: function (element, id) {
+        element.dataset.sortId = id;
+        element.dataset.sortGroup = group;
+        element.addEventListener('dragover', function (event) {
+          if (!dragId || dragId === id) return;
+          event.preventDefault();
+          if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+          element.classList.add(before(event, element) ? 'row-drop-above' : 'row-drop-below');
+          element.classList.remove(before(event, element) ? 'row-drop-below' : 'row-drop-above');
+        });
+        element.addEventListener('dragleave', function () {
+          element.classList.remove('row-drop-above', 'row-drop-below');
+        });
+        element.addEventListener('drop', function (event) {
+          if (!dragId || dragId === id) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const moved = dragId;
+          const putBefore = before(event, element);
+          clearMarks();
+          dragId = '';
+          spec.onReorder(reorderIds(group, moved, id, putBefore));
+        });
+        return element;
+      }
+    };
+
+    /** Above the halfway line means "drop before this row". */
+    function before(event, element) {
+      const box = element.getBoundingClientRect();
+      return (event.clientY - box.top) < (box.height / 2);
+    }
+
+    function rowsInGroup(name) {
+      return Array.prototype.slice.call(document.querySelectorAll('[data-sort-group="' + name + '"]'));
+    }
+
+    function reorderIds(name, movedId, targetId, putBefore) {
+      const ids = rowsInGroup(name).map(function (row) { return row.dataset.sortId; });
+      const without = ids.filter(function (id) { return id !== movedId; });
+      const at = without.indexOf(targetId);
+      if (at < 0) return ids;
+      without.splice(putBefore ? at : at + 1, 0, movedId);
+      return without;
+    }
+
+    function clearMarks() {
+      rowsInGroup(group).forEach(function (row) {
+        row.classList.remove('row-drop-above', 'row-drop-below', 'row-dragging');
+      });
+    }
   };
 
   RM.button = function (label, onClick, kind) {

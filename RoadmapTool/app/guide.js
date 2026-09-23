@@ -66,7 +66,8 @@ function build() {
   w('**Create only these three things: programmes, system changes and tasks.**');
   w();
   w('* A **programme** is a business outcome or a larger initiative.');
-  w('* A **system change** is a deliverable underneath a programme, and it carries the dates.');
+  w('* A **system change** is a deliverable underneath a programme. Its window');
+  w('  is worked out from the tasks inside it, not typed in.');
   w('* A **task** is the work underneath a system change. It carries the effort');
   w('  and its own dates, and together those drive the capacity view.');
   w();
@@ -91,12 +92,14 @@ function build() {
   w('**Dates**');
   w();
   w('* Written as `"YYYY-MM-DD"`, for example `"2027-03-01"`.');
-  w('* System changes and tasks both have dates. **Give every task its own**');
-  w('  **`startDate` and `endDate`** - the capacity view spreads a task\'s days');
-  w('  evenly across them, so tasks dated properly are what makes a heavy first');
-  w('  month look heavy. A task left without dates falls back to running across');
-  w('  the whole system change, which flattens the picture.');
-  w('* A task\'s dates normally sit inside its system change\'s dates.');
+  w('* **Dates belong on the tasks.** Give every task its own `startDate` and');
+  w('  `endDate`. The capacity view spreads a task\'s days evenly across them,');
+  w('  so tasks dated properly are what makes a heavy first month look heavy.');
+  w('* A system change runs from the first start to the last end of its tasks.');
+  w('  You do not date it yourself; the dates on it are only a placeholder for');
+  w('  a change whose tasks are not dated yet.');
+  w('* A task left without dates falls back to running across the whole system');
+  w('  change, which flattens the picture. Avoid it.');
   w('* `endDate` must be the same as, or after, `startDate`.');
   w('* A programme never has dates: the tool works them out from its system changes.');
   w('* If the timing is genuinely unknown, use `""` for both and say so in the notes.');
@@ -177,7 +180,7 @@ function build() {
     ['`subArea`', 'no', 'Free text, for example "Accreditation" or "Order to cash".'],
     ['`stream`', 'no', 'An id from `settings.resourceStreams`: whose capacity this consumes.'],
     ['`status`, `priority`', 'no', 'Ids from the matching settings list.'],
-    ['`startDate`, `endDate`', 'no', 'ISO dates. These place the bar on the roadmap.'],
+    ['`startDate`, `endDate`', 'no', 'ISO dates, used **only** while the change has no dated tasks. Once its tasks have dates, the change runs from the first task start to the last task end and these are ignored. Give the tasks dates and leave these empty.'],
     ['`targetDate`', 'no', 'A date it is aimed at, when that differs from the end date.'],
     ['`productOwners`, `deliveryOwners`', 'no', 'Names from the matching settings list, or `[]`.'],
     ['`description`', 'no', 'What the change is.'],
@@ -251,7 +254,7 @@ function build() {
   w('* Every status, priority, system, type, stream, milestone name, OKR and person appears in the master data file, spelled exactly as it is there.');
   w('* Nothing was invented to fill a gap; gaps are empty and explained in the notes.');
   w('* Every task has `days`, keyed by the resource type ids.');
-  w('* Every task has its own `startDate` and `endDate`, inside its system change\'s dates.');
+  w('* Every task has its own `startDate` and `endDate`; the system change itself needs none.');
   w('* Every system change names a programme.');
   w('* Dates are `YYYY-MM-DD`, and no end date is before its start date.');
   w('* It is valid JSON: double quotes throughout, no trailing commas, no comments.');
@@ -261,9 +264,9 @@ function build() {
   w('> Here is our roadmap JSON guide and our master data file. Using only the');
   w('> ids and names found in the master data, draft a programme called');
   w('> "Dealer Self-Service" with three system changes and four to six tasks');
-  w('> each, running from March to September 2027. Give every task its own start');
-  w('> and end dates inside its system change, and estimate the days for each');
-  w('> task against our resource types. Where nothing in the master data fits -');
+  w('> each, running from March to September 2027. Date every task, since the');
+  w('> system changes take their dates from those, and estimate the days for');
+  w('> each task against our resource types. Where nothing in the master data fits -');
   w('> a person, a stream, a system - leave the field empty and note why.');
   w('> Answer with the JSON only.');
   w();
@@ -307,8 +310,8 @@ function shape() {
         stream: '<id from settings.resourceStreams>',
         status: '<id from settings.statuses>',
         priority: '<id from settings.priorities>',
-        startDate: '2027-03-01',
-        endDate: '2027-05-31',
+        startDate: '',
+        endDate: '',
         targetDate: '',
         productOwners: [],
         deliveryOwners: [],

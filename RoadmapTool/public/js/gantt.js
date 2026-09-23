@@ -71,8 +71,11 @@
     const settings = RM.settings();
     const dates = [];
     (items || []).forEach(function (item) {
-      if (item.startDate) dates.push(item.startDate);
-      if (item.endDate) dates.push(item.endDate);
+      // A system change's window is the span of its tasks, so the timeline has
+      // to be wide enough for those, not just for the dates typed on the change.
+      const range = RM.itemRange(item);
+      if (range.startDate) dates.push(range.startDate);
+      if (range.endDate) dates.push(range.endDate);
       if (item.targetDate) dates.push(item.targetDate);
       (item.milestones || []).forEach(function (milestone) {
         if (milestone.date) dates.push(milestone.date);

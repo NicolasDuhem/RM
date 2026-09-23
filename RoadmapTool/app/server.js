@@ -246,6 +246,13 @@ function contextFor(dataset, siblings, existing, editor) {
   return ctx;
 }
 
+/** The next free place at the bottom of a hand-made running order. */
+function endOfOrder(records) {
+  return records.reduce(function (max, record) {
+    return Math.max(max, Number(record.sortIndex) || 0);
+  }, 0) + 1;
+}
+
 function createRecord(dataset, body) {
   requireEditable(dataset);
   const editor = body.editor;
@@ -253,6 +260,10 @@ function createRecord(dataset, body) {
   const outcome = store.save(dataset, body.revision, function (records) {
     const record = Object.assign({}, body.record || {});
     record.id = store.nextIdFor(dataset, records);
+    // A new record joins the roadmap at the bottom, not in the middle.
+    if (ORDERED.indexOf(dataset) >= 0 && record.sortIndex === undefined) {
+      record.sortIndex = endOfOrder(records);
+    }
     const checked = validation.validate(dataset, record, contextFor(dataset, records, null, editor));
     if (!checked.ok) throw validationError(checked.errors, checked.warnings);
     if (checked.warnings && checked.warnings.length && !body.acceptWarnings) {
@@ -263,6 +274,54 @@ function createRecord(dataset, body) {
   });
   auditChange('Created', dataset, created, null, editor);
   return { revision: outcome.revision, updatedAt: outcome.updatedAt, record: created };
+}
+
+/** Datasets whose running order on the roadmap is arranged by hand. */
+const ORDERED = ['programmes', 'roadmapItems'];
+
+/**
+ * Saves a hand-made running order. The whole dataset is rewritten in one
+ * atomic save with one revision check, so dragging a row can never half-apply
+ * and can never overwrite somebody else's change.
+ */
+function reorderRecords(dataset, body) {
+  requireEditable(dataset);
+  if (ORDERED.indexOf(dataset) < 0) {
+    throw badRequest('Records in "' + dataset + '" are not arranged by hand.');
+  }
+  const order = (Array.isArray(body.order) ? body.order : []).map(validation.trimmed).filter(Boolean);
+  if (!order.length) throw badRequest('No running order was supplied.');
+
+  let count = 0;
+  const outcome = store.save(dataset, body.revision, function (records) {
+    const byId = new Map(records.map(function (record) { return [record.id, record]; }));
+    const taken = new Set();
+    const next = [];
+    order.forEach(function (id) {
+      const record = byId.get(id);
+      if (!record || taken.has(id)) return;
+      taken.add(id);
+      next.push(record);
+    });
+    // Anything the browser did not know about keeps its place at the end,
+    // so a row added by somebody else is never lost by a drag.
+    records.forEach(function (record) { if (!taken.has(record.id)) next.push(record); });
+    count = next.length;
+    return next.map(function (record, index) {
+      return Object.assign({}, record, { sortIndex: index });
+    });
+  });
+
+  recordAudit({
+    editor: validation.trimmed(body.editor) || 'Unknown',
+    action: 'Reordered',
+    recordType: store.definition(dataset).label,
+    dataset: dataset,
+    recordId: '',
+    recordName: count + ' record(s)',
+    changes: []
+  });
+  return { revision: outcome.revision, updatedAt: outcome.updatedAt, count: count };
 }
 
 function updateRecord(dataset, id, body) {
@@ -435,6 +494,7 @@ function promoteBacklogItem(body) {
       if (programmeInput && validation.trimmed(programmeInput.name)) {
         const draft = Object.assign({}, programmeInput);
         draft.id = store.nextIdFor('programmes', records);
+        if (draft.sortIndex === undefined) draft.sortIndex = endOfOrder(records);
         const checked = validation.validateProgramme(draft, { siblings: records, editor: editor });
         if (!checked.ok) throw validationError(checked.errors);
         newProgramme = checked.record;
@@ -471,6 +531,7 @@ function promoteBacklogItem(body) {
       draft.programmeId = programmeId;
       draft.backlogId = backlogId;
       draft.id = store.nextIdFor('roadmapItems', records);
+      if (draft.sortIndex === undefined) draft.sortIndex = endOfOrder(records);
       const programmes = newProgramme ? store.records('programmes').concat([newProgramme]) : store.records('programmes');
       const checked = validation.validateRoadmapItem(draft, { siblings: records, programmes: programmes, editor: editor });
       if (!checked.ok) throw validationError(checked.errors);
@@ -759,6 +820,9 @@ function importAdditions(body) {
           });
           if (existing) return; // reuse it rather than create a second one
           draft.id = store.nextIdFor('programmes', next);
+          // Imported records land at the bottom of the roadmap, never on top of
+          // an order somebody has already arranged.
+          if (draft.sortIndex === undefined) draft.sortIndex = endOfOrder(next);
           const checked = validation.validateProgramme(draft, { siblings: next, editor: editor });
           checked.errors.forEach(function (error) {
             errors.push({ field: 'programmes', message: 'Programme "' + name + '": ' + error.message });
@@ -792,6 +856,7 @@ function importAdditions(body) {
           draft.programmeId = programme.id;
           delete draft.programme;
           draft.id = store.nextIdFor('roadmapItems', next);
+          if (draft.sortIndex === undefined) draft.sortIndex = endOfOrder(next);
 
           ['milestones', 'risks', 'gates', 'tasks'].forEach(function (collection) {
             const prefix = { milestones: 'MS', risks: 'RISK', gates: 'GAT', tasks: 'TSK' }[collection];
@@ -1102,6 +1167,7 @@ async function handleApi(req, res, pathname, query) {
       if (!id) throw badRequest('No record id was supplied.');
       return sendJson(res, 200, deleteRecord(dataset, id, body));
     }
+    if (action === 'reorder') return sendJson(res, 200, reorderRecords(dataset, body));
     throw badRequest('Unknown action "' + action + '".');
   }
 
@@ -1213,6 +1279,27 @@ async function handleApi(req, res, pathname, query) {
     const text = dataset === 'tasks' ? exportTasksCsv() : exportCsv(dataset);
     const baseName = dataset === 'tasks' ? 'tasks' : store.definition(dataset).file.replace(/\.json$/, '');
     const fileName = baseName + '_' + fileStamp() + '.csv';
+    writeExport(fileName, text);
+    res.writeHead(200, {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="' + fileName + '"',
+      'X-Roadmap-Export-File': fileName,
+      'Content-Length': Buffer.byteLength(text)
+    });
+    return res.end(text);
+  }
+
+  // The resources sheet is built in the browser, because what it holds is what
+  // is on screen: the chosen scenario, window, granularity and filters. The
+  // server's job is to keep the exports folder copy and name the file.
+  if (method === 'POST' && head === 'export' && segments[1] === 'resources') {
+    const body = await readBody(req);
+    const rows = Array.isArray(body.rows) ? body.rows : [];
+    if (!rows.length) throw badRequest('There was nothing to export.');
+    const text = csv.stringifyGrid(rows.map(function (row) {
+      return Array.isArray(row) ? row : [row];
+    }));
+    const fileName = 'resources_' + fileStamp() + '.csv';
     writeExport(fileName, text);
     res.writeHead(200, {
       'Content-Type': 'text/csv; charset=utf-8',

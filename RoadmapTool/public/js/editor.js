@@ -201,7 +201,6 @@
     { id: 'tasks', label: 'Tasks', needsRecord: true },
     { id: 'dependencies', label: 'Dependencies' },
     { id: 'risks', label: 'Risks & Decisions', needsRecord: true },
-    { id: 'delivery', label: 'Delivery' },
     { id: 'resources', label: 'Resources' },
     { id: 'milestones', label: 'Milestones', needsRecord: true },
     { id: 'history', label: 'History', needsRecord: true }
@@ -301,8 +300,7 @@
           },
           { name: 'status', label: 'Status', type: 'select', list: 'statuses', badge: 'status', options: RM.selectOptions('statuses') },
           { name: 'priority', label: 'Priority', type: 'select', list: 'priorities', badge: 'priority', options: RM.selectOptions('priorities') },
-          { name: 'startDate', label: 'Start', type: 'date' },
-          { name: 'endDate', label: 'End', type: 'date' },
+        ].concat(dateCells(state)).concat([
           { name: 'targetDate', label: 'Target', type: 'date' },
           {
             name: 'systemAreas', label: 'Systems', type: 'multiselect', list: 'systems', wide: true,
@@ -323,7 +321,7 @@
             name: 'deliveryOwners', label: 'Delivery owners', type: 'multiselect', names: true, wide: true,
             options: RM.deliveryOwnerOptions, placeholder: 'Nobody yet'
           }
-        ])
+        ]))
       ]);
     }
 
@@ -399,6 +397,35 @@
     }
   }
 
+  /**
+   * The dates on the ribbon. Once the change has dated tasks, its window is
+   * theirs and cannot be typed over here - that is the whole point of holding
+   * the dates on the work. Until then the change keeps its own planned window
+   * so it can still be sketched onto the roadmap.
+   */
+  function dateCells(state) {
+    const item = state.id ? (RM.itemById(state.id) || state.draft) : state.draft;
+    const range = RM.itemRange(item);
+    if (!range.derived) {
+      return [
+        { name: 'startDate', label: 'Planned start', type: 'date' },
+        { name: 'endDate', label: 'Planned end', type: 'date' }
+      ];
+    }
+    return [
+      {
+        name: 'startDate', label: 'Start (from tasks)', readOnly: true,
+        render: function () { return el('span', { title: FROM_TASKS }, RM.dates.formatDate(range.startDate)); }
+      },
+      {
+        name: 'endDate', label: 'End (from tasks)', readOnly: true,
+        render: function () { return el('span', { title: FROM_TASKS }, RM.dates.formatDate(range.endDate)); }
+      }
+    ];
+  }
+
+  const FROM_TASKS = 'The first start and the last end of the tasks below. Change a task\u2019s dates to move this.';
+
   function fact(label, value) {
     return el('div', 'hero-fact', [
       el('span', 'hero-fact-value', value),
@@ -431,7 +458,6 @@
       case 'tasks': return tasksTab(state, redraw);
       case 'dependencies': return dependenciesTab(state, handle);
       case 'risks': return risksTab(state, redraw);
-      case 'delivery': return deliveryTab(state);
       case 'resources': return resourcesTab(state);
       case 'milestones': return milestonesTab(state, redraw);
       case 'history': return historyTab(state.id);
@@ -447,6 +473,11 @@
         field(state, { name: 'problemStatement', label: 'Problem statement', type: 'textarea', full: true, rows: 2 }),
         field(state, { name: 'comments', label: 'Comments', type: 'textarea', full: true, rows: 2 }),
         field(state, { name: 'notes', label: 'Notes', type: 'textarea', full: true, rows: 2 })
+      ]),
+      group('Approach', [
+        field(state, { name: 'recommendedApproach', label: 'Recommended approach', type: 'textarea', full: true, rows: 2 }),
+        field(state, { name: 'tradeOffs', label: 'Trade-offs', type: 'textarea', full: true, rows: 2 }),
+        field(state, { name: 'pocNotes', label: 'POC information', type: 'textarea', full: true, rows: 2 })
       ]),
       state.isNew ? null : el('p', 'muted small',
         'Last updated ' + RM.dates.formatDateTime(draft.updatedAt) + (draft.updatedBy ? ' by ' + draft.updatedBy : ''))
@@ -504,45 +535,10 @@
     }
   }
 
-  function deliveryTab(state) {
-    const resourceTypes = RM.effort.resourceTypes();
-    return el('div', 'stack', [
-      el('p', 'muted small', 'Two ways of doing the same change, for the conversation about pace against risk. The plan itself is the task list.'),
-      el('div', 'compare-grid', [
-        estimateCard(state, 'fast', 'Fast MVP', resourceTypes, 'compare-fast'),
-        estimateCard(state, 'standard', 'Standard delivery', resourceTypes, 'compare-standard')
-      ]),
-      group('Approach', [
-        field(state, { name: 'recommendedApproach', label: 'Recommended approach', type: 'textarea', full: true, rows: 2 }),
-        field(state, { name: 'tradeOffs', label: 'Trade-offs', type: 'textarea', full: true, rows: 2 }),
-        field(state, { name: 'pocNotes', label: 'POC information', type: 'textarea', full: true, rows: 2 })
-      ])
-    ]);
-  }
-
-  function estimateCard(state, mode, title, resourceTypes, modifier) {
-    const days = RM.effort.ofEstimate(state.draft, mode);
-    const total = RM.effort.total(days);
-    return el('div', 'compare-card ' + modifier, [
-      el('div', 'compare-head', [el('h4', null, title), el('span', 'compare-total', RM.effort.format(total) + ' days')]),
-      el('dl', 'definition-grid definition-grid-tight', resourceTypes.map(function (type) {
-        return field(state, {
-          name: 'estimates.' + mode + '.days.' + type.id,
-          label: type.name, type: 'number', min: 0, step: '0.5'
-        });
-      }).concat([
-        field(state, { name: 'estimates.' + mode + '.risk', label: 'Risk', full: true }),
-        field(state, { name: 'estimates.' + mode + '.notes', label: 'Notes', type: 'textarea', rows: 2, full: true })
-      ]))
-    ]);
-  }
-
   function resourcesTab(state) {
     const item = state.id ? RM.itemById(state.id) : state.draft;
     const resourceTypes = RM.effort.resourceTypes();
     const fromTasks = RM.effort.ofItem(item);
-    const fast = RM.effort.ofEstimate(item, 'fast');
-    const standard = RM.effort.ofEstimate(item, 'standard');
     const tasks = (item && item.tasks) || [];
 
     const byStream = {};
@@ -556,27 +552,23 @@
     });
 
     return el('div', 'stack', [
-      el('p', 'muted small', 'Effort is entered on the tasks and adds up here, then up again to the programme.'),
+      el('p', 'muted small',
+        'Effort is entered on the tasks and adds up here, then up again to the programme. '
+        + 'How long the change takes comes from the same place: the span of its dated tasks.'),
       el('table', 'table', [
         el('thead', null, el('tr', null, [
           el('th', null, 'Resource'),
-          el('th', 'numeric', 'From tasks (days)'),
-          el('th', 'numeric', 'Fast MVP'),
-          el('th', 'numeric', 'Standard')
+          el('th', 'numeric', 'Days from tasks')
         ])),
         el('tbody', null, resourceTypes.map(function (type) {
           return el('tr', null, [
             el('td', null, type.name),
-            el('td', 'numeric strong', RM.effort.format(fromTasks[type.id])),
-            el('td', 'numeric muted', RM.effort.format(fast[type.id])),
-            el('td', 'numeric muted', RM.effort.format(standard[type.id]))
+            el('td', 'numeric strong', RM.effort.format(fromTasks[type.id]))
           ]);
         })),
         el('tfoot', null, el('tr', null, [
           el('th', null, 'Total'),
-          el('th', 'numeric', RM.effort.format(RM.effort.total(fromTasks))),
-          el('th', 'numeric muted', RM.effort.format(RM.effort.total(fast))),
-          el('th', 'numeric muted', RM.effort.format(RM.effort.total(standard)))
+          el('th', 'numeric', RM.effort.format(RM.effort.total(fromTasks)))
         ]))
       ]),
       el('h4', null, 'By stream'),
@@ -608,15 +600,23 @@
     const resourceTypes = RM.effort.resourceTypes();
     const totals = RM.effort.ofItem(item);
 
+    // Tasks are read in the order they are listed, so the same grip that works
+    // on the roadmap works here, where they are actually managed.
+    const sorter = RM.makeSortable({
+      group: 'panel-tasks-' + item.id,
+      onReorder: function (order) { saveTaskOrder(item, order, redraw); }
+    });
+
     return el('div', 'stack', [
       el('div', 'section-head', [
         el('h4', null, 'Tasks (' + tasks.length + ')'),
         RM.button('+ Add task', function () { editTask(item, null, redraw); }, 'primary')
       ]),
-      el('p', 'muted small', 'Tasks hold the effort. Everything here adds up to the system change and then to the programme.'),
+      el('p', 'muted small', 'Tasks hold the effort and the dates, and both add up to the system change and then to the programme. Drag a row by its grip to reorder.'),
       tasks.length
         ? el('div', 'table-wrap', el('table', 'table table-hover table-tasks', [
           el('thead', null, el('tr', null, [
+            el('th', 'col-grip', ''),
             el('th', 'col-task', 'Task'),
             el('th', 'col-dates', 'Dates'),
             el('th', 'col-status', 'Status'),
@@ -632,7 +632,8 @@
             const days = RM.effort.ofTask(task);
             const stream = RM.streamOf(item, task);
             const dated = !!(task.startDate && task.endDate);
-            return el('tr', null, [
+            return sorter.row(el('tr', null, [
+              el('td', 'col-grip', sorter.handle(task.id, 'Drag to reorder the tasks')),
               // The description is a caption on the name rather than a second
               // line, so one long note cannot squash the whole table.
               el('td', 'col-task', el('span', 'task-name', [
@@ -683,10 +684,10 @@
                 el('button', { class: 'link-button', type: 'button', onclick: function () { editTask(item, task, redraw); } }, 'Edit'),
                 el('button', { class: 'link-button link-danger', type: 'button', onclick: function () { removeChild(item, 'tasks', task, redraw, task.name); } }, 'Delete')
               ])
-            ]);
+            ]), task.id);
           })),
           el('tfoot', null, el('tr', null, [
-            el('th', { colspan: '7' }, 'Total effort'),
+            el('th', { colspan: '8' }, 'Total effort'),
             el('th', null, el('span', 'chip-list', resourceTypes.map(function (type) {
               return totals[type.id]
                 ? el('span', { class: 'pill', title: type.name }, shortName(type.name) + ' ' + RM.effort.format(totals[type.id]))
@@ -700,6 +701,19 @@
           'Tasks are the third level of the roadmap: the work under this system change, and where effort is recorded.',
           RM.button('+ Add task', function () { editTask(item, null, redraw); }, 'primary'))
     ]);
+  }
+
+  /** Saves a new task order as an ordinary, revision-checked item save. */
+  function saveTaskOrder(item, order, redraw) {
+    const byId = new Map((item.tasks || []).map(function (task) { return [task.id, task]; }));
+    const tasks = order.map(function (id) { return byId.get(id); }).filter(Boolean);
+    (item.tasks || []).forEach(function (task) {
+      if (tasks.indexOf(task) < 0) tasks.push(task);
+    });
+    RM.api.update('roadmapItems', item.id, Object.assign({}, item, { tasks: tasks })).then(function () {
+      RM.toast('Tasks reordered.', 'success');
+      return RM.refresh().then(function () { if (redraw) redraw(); });
+    }).catch(function (err) { RM.handleError(err, 'Could not save the new order'); });
   }
 
   /** Opens a link in a new tab. Anything that is not http(s) is refused. */
