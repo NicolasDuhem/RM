@@ -20,7 +20,8 @@ function baseSchema(dataset) {
         col('Short Name', 'shortName'),
         col('Description', 'description'),
         col('Business Outcome', 'businessOutcome'),
-        col('Owner', 'owner'),
+        names('Product Owners', 'productOwners'),
+        names('Delivery Owners', 'deliveryOwners'),
         option('Status', 'status', 'statuses'),
         option('Priority', 'priority', 'priorities'),
         col('Colour', 'colour'),
@@ -46,10 +47,8 @@ function baseSchema(dataset) {
         date('Start Date', 'startDate'),
         date('End Date', 'endDate'),
         date('Target Date', 'targetDate'),
-        col('Business Owner', 'businessOwner'),
-        col('Product Owner', 'productOwner'),
-        col('Technical Owner', 'technicalOwner'),
-        col('Delivery Owner', 'deliveryOwner'),
+        names('Product Owners', 'productOwners'),
+        names('Delivery Owners', 'deliveryOwners'),
         col('Description', 'description'),
         col('Business Outcome', 'businessOutcome'),
         col('Problem Statement', 'problemStatement'),
@@ -106,6 +105,7 @@ function baseSchema(dataset) {
 
 function col(header, field) { return { header: header, field: field, kind: 'text' }; }
 function options(header, field, listName) { return { header: header, field: field, kind: 'options', list: listName }; }
+function names(header, field) { return { header: header, field: field, kind: 'names' }; }
 function date(header, field) { return { header: header, field: field, kind: 'date' }; }
 function bool(header, field) { return { header: header, field: field, kind: 'bool' }; }
 function option(header, field, listName) { return { header: header, field: field, kind: 'option', list: listName }; }
@@ -175,6 +175,8 @@ function toCell(column, record, settings) {
       return (Array.isArray(raw) ? raw : (raw ? [raw] : []))
         .map(function (id) { return optionName(settings, column.list, id); })
         .join('; ');
+    case 'names':
+      return (Array.isArray(raw) ? raw : (raw ? [raw] : [])).join('; ');
     case 'number': return raw === undefined || raw === null || raw === '' ? '' : String(raw);
     default: return raw === undefined || raw === null ? '' : String(raw);
   }
@@ -190,6 +192,8 @@ function fromCell(column, value, settings) {
         .split(/\s*[;|]\s*/)
         .filter(Boolean)
         .map(function (part) { return optionId(settings, column.list, part); });
+    case 'names':
+      return text.split(/\s*[;|]\s*/).map(function (part) { return part.trim(); }).filter(Boolean);
     case 'number': {
       if (!text) return 0;
       const n = Number(text);

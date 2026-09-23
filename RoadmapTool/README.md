@@ -121,6 +121,11 @@ Customer / Dealer Master & Accreditation
     BPP Product Eligibility Restriction
 ```
 
+**Key dates** are the dates the business plans around - a freeze, a board
+meeting, a year end. Add them in Settings (a label and a date), and each one is
+drawn down the whole roadmap with its label at the top, like the TODAY line.
+The *Key dates* tick box on the Roadmap toolbar shows or hides them.
+
 **Programme dates are never typed in.** A programme starts at the earliest
 start date of its children and ends at the latest end date. A programme with no
 dated children simply shows *Not scheduled*.
@@ -151,19 +156,25 @@ Click any bar or title on the roadmap to open the record panel: summary, tasks,
 dependencies, risks and decisions, delivery (Fast MVP versus Standard), the
 resource roll-up, milestones, and that item's history.
 
+**Everything at a glance sits in one ribbon.** Programme, status, priority,
+phase, dates, systems, types, stream and owners run across the top of the
+panel, each one once. The body underneath carries only what the ribbon does
+not: the prose, the tasks, the dependencies.
+
 **Reading and editing use the same layout.** Press *Edit* and the values in
-front of you turn into inputs, in exactly the same places - nothing jumps
-around and nothing is hidden behind a separate form. Creating a programme or a
-system change opens that same panel, already in edit mode. Nothing is stored
-until you press Save.
+front of you turn into inputs, in exactly the same places - the title, the
+outcome and every cell of the ribbon - so nothing jumps around and nothing is
+hidden behind a separate form. Creating a programme or a system change opens
+that same panel, already in edit mode. Nothing is stored until you press Save.
 
 A system change can belong to several **systems** and be of several **types**;
 both are multi-select.
 
-Every owner field - programme owner, the four owners on a system change, and
-the owner of a task, risk, gate or dependency - is a dropdown of the **people**
-maintained in Settings. The name itself is what gets stored, so anybody named
-before that list existed still shows on their record.
+Ownership is two lists, each maintained in Settings: **product owners** and
+**delivery owners**. A programme or a system change can name several of each -
+tick them in the ribbon. A task, risk, gate or dependency takes a single owner
+from either list. The name itself is what gets stored, so anybody named before
+those lists existed still shows on their record.
 
 Dragging a bar (or its edges) changes the start and end dates. It goes through
 exactly the same save as the panel, so it gets the same protection.

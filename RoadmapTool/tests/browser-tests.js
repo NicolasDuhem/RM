@@ -23,6 +23,9 @@ function check(name, ok, detail) {
 }
 (async () => {
   const browser = await chromium.launch();
+  /** A cell of the panel ribbon, found by its label. */
+  const ribbon = (page, label) => page.locator('.modal .ribbon-cell')
+    .filter({ has: page.locator('.ribbon-label', { hasText: new RegExp('^' + label + '$') }) });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
@@ -45,17 +48,22 @@ function check(name, ok, detail) {
   console.log('\nReading and editing in one layout');
   await page.locator('.row-title', { hasText: 'Salesforce Accreditation Model' }).first().click();
   await page.waitForTimeout(400);
-  const readLabels = await page.locator('.modal .definition dt').allTextContents();
+  const readLabels = await page.locator('.modal .ribbon-label, .modal .definition dt').allTextContents();
   await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).click();
   await page.waitForTimeout(400);
-  const editLabels = await page.locator('.modal .definition dt').allTextContents();
+  const editLabels = await page.locator('.modal .ribbon-label, .modal .definition dt').allTextContents();
   check('editing keeps exactly the same fields in the same order',
-    JSON.stringify(readLabels) === JSON.stringify(editLabels));
-  check('editing swaps values for inputs in place', await page.locator('.modal .definition input').count() > 5);
-  await page.locator('.definition', { hasText: 'End date' }).locator('input').fill('2026-01-01');
+    JSON.stringify(readLabels) === JSON.stringify(editLabels),
+    JSON.stringify(readLabels) + ' vs ' + JSON.stringify(editLabels));
+  check('the facts sit in one ribbon, not repeated below',
+    await page.locator('.modal .ribbon-cell').count() >= 10);
+  check('editing swaps values for inputs in place',
+    await page.locator('.modal .ribbon-cell input, .modal .ribbon-cell select, .modal .ribbon-cell .ms-control').count() >= 10);
+  check('the title is edited where it is read', await page.locator('.modal .hero-input-title').count() === 1);
+  await ribbon(page, 'End').locator('input').fill('2026-01-01');
   await page.locator('.panel-footer .button-primary', { hasText: 'Save changes' }).click();
   await page.waitForTimeout(700);
-  check('a bad date is flagged on the field itself', await page.locator('.definition.field-invalid').count() === 1);
+  check('a bad date is flagged on the field itself', await page.locator('.modal .field-invalid').count() === 1);
   await page.locator('.panel-footer .button', { hasText: 'Cancel' }).click();
   await page.waitForTimeout(400);
   check('cancel returns to reading', await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).count() === 1);
@@ -68,8 +76,9 @@ function check(name, ok, detail) {
   console.log('\nCreating');
   await page.locator('.button', { hasText: '+ New Programme' }).click();
   await page.waitForTimeout(350);
-  check('a new programme uses the same panel', await page.locator('.modal .panel-group-title').count() >= 2);
-  await page.locator('.definition', { hasText: 'Programme name' }).locator('input').fill('UI Programme');
+  check('a new programme uses the same panel',
+    await page.locator('.modal .ribbon-cell').count() >= 4 && await page.locator('.modal .hero-input-title').count() === 1);
+  await page.locator('.modal .hero-input-title').fill('UI Programme');
   await page.locator('.panel-footer .button-primary').click();
   await page.waitForTimeout(900);
   check('the created programme stays open to read', await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).count() === 1);
@@ -80,23 +89,23 @@ function check(name, ok, detail) {
   await page.waitForTimeout(400);
   check('a new system change uses the same panel', await page.locator('.modal .tabs .tab').count() === 8);
   check('tabs needing a saved record are locked', await page.locator('.tab-locked').count() >= 4);
-  await page.locator('.definition', { hasText: 'Title' }).first().locator('input').fill('Multi select change');
-  await page.locator('.definition', { hasText: 'Programme' }).locator('select').selectOption({ label: 'UI Programme' });
-  await page.locator('.definition', { hasText: 'Systems' }).locator('.ms-control').click();
+  await page.locator('.modal .hero-input-title').fill('Multi select change');
+  await ribbon(page, 'Programme').locator('select').selectOption({ label: 'UI Programme' });
+  await ribbon(page, 'Systems').locator('.ms-control').click();
   await page.waitForTimeout(250);
   await page.locator('.ms-panel .ms-option', { hasText: 'Salesforce' }).click();
   await page.locator('.ms-panel .ms-option', { hasText: 'NetSuite' }).click();
   await page.locator('.modal-title').first().click();
   await page.waitForTimeout(200);
-  await page.locator('.definition', { hasText: 'Types' }).locator('.ms-control').click();
+  await ribbon(page, 'Types').locator('.ms-control').click();
   await page.waitForTimeout(250);
   await page.locator('.ms-panel .ms-option', { hasText: 'Integration' }).click();
   await page.locator('.ms-panel .ms-option', { hasText: 'Rollout' }).click();
   await page.locator('.modal-title').first().click();
   await page.waitForTimeout(200);
-  await page.locator('.definition', { hasText: 'Resource stream' }).locator('select').selectOption({ label: 'B2B' });
-  await page.locator('.definition', { hasText: 'Start date' }).locator('input').fill('2026-10-01');
-  await page.locator('.definition', { hasText: 'End date' }).locator('input').fill('2026-12-31');
+  await ribbon(page, 'Stream').locator('select').selectOption({ label: 'B2B' });
+  await ribbon(page, 'Start').locator('input').fill('2026-10-01');
+  await ribbon(page, 'End').locator('input').fill('2026-12-31');
   await page.locator('.panel-footer .button-primary').click();
   await page.waitForTimeout(1000);
   const stored = await page.evaluate(() => {
@@ -156,7 +165,7 @@ function check(name, ok, detail) {
   await page.waitForTimeout(400);
   await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).click();
   await page.waitForTimeout(300);
-  await page.locator('.definition', { hasText: 'Title' }).first().locator('input').fill('Stale edit');
+  await page.locator('.modal .hero-input-title').fill('Stale edit');
   await page.locator('.panel-footer .button-primary', { hasText: 'Save changes' }).click();
   await page.waitForTimeout(700);
   const conflict = await page.locator('.modal').last().innerText();
@@ -164,6 +173,18 @@ function check(name, ok, detail) {
   await page.locator('.modal').last().locator('.button-primary').click();
   await page.waitForTimeout(900);
   check('the stale edit was not written', await page.locator('.row-title', { hasText: 'Stale edit' }).count() === 0);
+
+  console.log('\nKey dates');
+  check('key dates are drawn on the timeline', await page.locator('.key-date-flag').count() >= 2);
+  check('and a line runs down the chart', await page.locator('.key-date-line').count() > 0);
+  const keyDateNames = await page.locator('.key-date-flag').allTextContents();
+  check('the flag carries the label', keyDateNames.indexOf('Peak season freeze') >= 0, keyDateNames.join(','));
+  await page.locator('.toggle', { hasText: 'Key dates' }).locator('input').uncheck();
+  await page.waitForTimeout(500);
+  check('they can be hidden', await page.locator('.key-date-flag').count() === 0);
+  await page.locator('.toggle', { hasText: 'Key dates' }).locator('input').check();
+  await page.waitForTimeout(500);
+  check('and shown again', await page.locator('.key-date-flag').count() >= 2);
 
   console.log('\nFilters and views');
   await page.locator('.search-input').first().fill('accreditation');
@@ -282,7 +303,7 @@ function check(name, ok, detail) {
   await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).click();
   await page.waitForTimeout(500);
   const spills = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('.modal .definition')).map(d => {
+    return Array.from(document.querySelectorAll('.modal .definition, .modal .ribbon-cell')).map(d => {
       const r = d.getBoundingClientRect();
       const c = d.querySelector('.input, .ms-control');
       if (!c) return 0;
@@ -292,15 +313,37 @@ function check(name, ok, detail) {
   });
   check('no control spills out of its column', spills.length === 0, JSON.stringify(spills));
 
-  console.log('\nOwner dropdowns');
-  const ownerTag = await page.locator('.definition', { hasText: 'Business owner' }).locator('select, input').evaluate(e => e.tagName);
-  check('owner fields are dropdowns', ownerTag === 'SELECT', ownerTag);
-  const ownerOptions = await page.locator('.definition', { hasText: 'Business owner' }).locator('select option').allTextContents();
-  check('they offer the people from Settings', ownerOptions.indexOf('Sarah') > 0 && ownerOptions.indexOf('Jake') > 0);
-  await page.locator('.definition', { hasText: 'Technical owner' }).locator('select').selectOption({ label: 'Jake' });
+  console.log('\nOwners');
+  check('only product and delivery owners are asked for',
+    await ribbon(page, 'Product owners').count() === 1 &&
+    await ribbon(page, 'Delivery owners').count() === 1 &&
+    await page.locator('.modal .ribbon-label', { hasText: /Business owner|Technical owner/ }).count() === 0);
+
+  await ribbon(page, 'Product owners').locator('.ms-control').click();
+  await page.waitForTimeout(250);
+  const ownerChoices = await page.locator('.ms-panel .ms-option').allTextContents();
+  check('the product owner list comes from Settings',
+    ownerChoices.indexOf('Sarah') >= 0 && ownerChoices.indexOf('Jake') < 0, ownerChoices.join(','));
+  await page.locator('.ms-panel .ms-option', { hasText: 'Sarah' }).click();
+  await page.locator('.modal-title').first().click();
+  await page.waitForTimeout(200);
+
+  await ribbon(page, 'Delivery owners').locator('.ms-control').click();
+  await page.waitForTimeout(250);
+  const deliveryChoices = await page.locator('.ms-panel .ms-option').allTextContents();
+  check('the delivery owner list is its own', deliveryChoices.indexOf('Jake') >= 0, deliveryChoices.join(','));
+  await page.locator('.ms-panel .ms-option', { hasText: 'Operations' }).click();
+  await page.locator('.modal-title').first().click();
+  await page.waitForTimeout(200);
+
   await page.locator('.panel-footer .button-primary', { hasText: 'Save changes' }).click();
   await page.waitForTimeout(900);
-  check('the picked name is saved', await page.evaluate(() => window.RM.itemById('RM-0001').technicalOwner) === 'Jake');
+  const owners = await page.evaluate(() => {
+    const i = window.RM.itemById('RM-0001');
+    return { product: i.productOwners, delivery: i.deliveryOwners };
+  });
+  check('several product owners can be ticked', owners.product.length === 2, JSON.stringify(owners));
+  check('several delivery owners can be ticked', owners.delivery.length === 2, JSON.stringify(owners));
   await page.locator('.modal .icon-button').first().click();
   await page.waitForTimeout(300);
 

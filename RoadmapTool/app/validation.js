@@ -80,7 +80,7 @@ function validateProgramme(input, context) {
   record.shortName = trimmed(record.shortName) || record.name.slice(0, 40);
   record.description = str(record.description);
   record.businessOutcome = str(record.businessOutcome);
-  record.owner = trimmed(record.owner);
+  applyOwners(record);
   record.status = trimmed(record.status);
   record.priority = trimmed(record.priority);
   record.colour = trimmed(record.colour) || '#2563eb';
@@ -144,10 +144,7 @@ function validateRoadmapItem(input, context) {
   // The scope section was removed from the tool; drop it from stored records.
   ['scope', 'outOfScope', 'assumptions'].forEach(function (field) { delete record[field]; });
 
-  ['businessOwner', 'productOwner', 'technicalOwner', 'deliveryOwner', 'owner'].forEach(function (field) {
-    record[field] = trimmed(record[field]);
-  });
-  if (!record.owner) record.owner = record.deliveryOwner || record.productOwner || record.businessOwner || '';
+  applyOwners(record);
 
   record.backlogId = trimmed(record.backlogId);
   record.milestones = validateChildList(errors, record.milestones, 'milestones', validateMilestone);
@@ -270,6 +267,37 @@ function cleanDays(value) {
     days[key] = amount < 0 ? 0 : amount;
   });
   return days;
+}
+
+/**
+ * Ownership is held as two lists of names: product owners and delivery
+ * owners. Records written by an older version carried single names (and a
+ * business or technical owner), so those are folded in on first save.
+ * `owner` stays as a convenience for the roadmap row and the search.
+ */
+function applyOwners(record) {
+  record.productOwners = nameList(record.productOwners, [record.productOwner, record.businessOwner, record.owner]);
+  record.deliveryOwners = nameList(record.deliveryOwners, [record.deliveryOwner, record.technicalOwner]);
+  record.owner = record.productOwners[0] || record.deliveryOwners[0] || '';
+  ['productOwner', 'deliveryOwner', 'businessOwner', 'technicalOwner'].forEach(function (field) {
+    delete record[field];
+  });
+  return record;
+}
+
+/** A list of people's names: trimmed, de-duplicated, empties dropped. */
+function nameList(value, legacy) {
+  const source = Array.isArray(value) ? value.slice() : (value ? [value] : []);
+  (legacy || []).forEach(function (entry) { source.push(entry); });
+  const seen = new Set();
+  const out = [];
+  source.forEach(function (entry) {
+    const name = trimmed(entry);
+    if (!name || seen.has(name.toLowerCase())) return;
+    seen.add(name.toLowerCase());
+    out.push(name);
+  });
+  return out;
 }
 
 /** Normalises a multi-select value, tolerating a single legacy string. */
@@ -489,7 +517,7 @@ function upcomingMonths(count) {
 /* ------------------------------------------------------------------ */
 
 const OPTION_LISTS = ['systems', 'itemTypes', 'statuses', 'priorities', 'milestoneTypes',
-  'dependencyTypes', 'resourceTypes', 'resourceStreams', 'people'];
+  'dependencyTypes', 'resourceTypes', 'resourceStreams', 'productOwners', 'deliveryOwners'];
 
 function validateSettings(input, context) {
   const errors = [];
@@ -528,7 +556,41 @@ function validateSettings(input, context) {
 
   record.quarters = cleanQuarters(errors, record.quarters);
   record.okrs = cleanOkrs(errors, record.okrs);
+  record.keyDates = cleanKeyDates(errors, record.keyDates);
+  record.showKeyDates = record.showKeyDates === undefined ? true : bool(record.showKeyDates);
   return result(errors, record);
+}
+
+/** Dates the business plans around, drawn across the whole roadmap. */
+function cleanKeyDates(errors, value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  value.forEach(function (entry, index) {
+    const src = (entry && typeof entry === 'object') ? entry : {};
+    const name = trimmed(src.name);
+    const date = optionalDate(errors, src.date, 'keyDates', 'Key date');
+    if (!name && !date) return;
+    if (!name) {
+      errors.push({ field: 'keyDates', message: 'Every key date needs a label.' });
+      return;
+    }
+    if (!date) {
+      errors.push({ field: 'keyDates', message: '"' + name + '" needs a date.' });
+      return;
+    }
+    let id = trimmed(src.id) || 'kd-' + slugify(name);
+    while (seen.has(id)) id = id + '-' + (index + 1);
+    seen.add(id);
+    const colour = trimmed(src.colour);
+    if (colour && !/^#[0-9a-fA-F]{6}$/.test(colour)) {
+      errors.push({ field: 'keyDates', message: 'Colour for "' + name + '" must be a hex value such as #b45309.' });
+      return;
+    }
+    out.push({ id: id, name: name, date: date, colour: colour || '#b45309' });
+  });
+  out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  return out;
 }
 
 /** OKRs have two levels: objectives, each with its own key results. */

@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T05:33:18.951Z",
+  "updatedAt": "2026-09-23T06:11:46.581Z",
   "settings": {
     "appName": "Roadmap Tool",
     "organisation": "",
@@ -348,7 +348,7 @@
         "active": true
       }
     ],
-    "people": [
+    "productOwners": [
       {
         "id": "nicolas",
         "name": "Nicolas",
@@ -360,11 +360,6 @@
         "active": true
       },
       {
-        "id": "jake",
-        "name": "Jake",
-        "active": true
-      },
-      {
         "id": "priya",
         "name": "Priya",
         "active": true
@@ -373,15 +368,12 @@
         "id": "commercial",
         "name": "Commercial",
         "active": true
-      },
+      }
+    ],
+    "deliveryOwners": [
       {
-        "id": "finance",
-        "name": "Finance",
-        "active": true
-      },
-      {
-        "id": "operations",
-        "name": "Operations",
+        "id": "jake",
+        "name": "Jake",
         "active": true
       },
       {
@@ -393,6 +385,30 @@
         "id": "integration-team",
         "name": "Integration team",
         "active": true
+      },
+      {
+        "id": "operations",
+        "name": "Operations",
+        "active": true
+      },
+      {
+        "id": "finance",
+        "name": "Finance",
+        "active": true
+      }
+    ],
+    "keyDates": [
+      {
+        "id": "kd-peak",
+        "name": "Peak season freeze",
+        "date": "2026-11-15",
+        "colour": "#b45309"
+      },
+      {
+        "id": "kd-year-end",
+        "name": "Financial year end",
+        "date": "2027-03-31",
+        "colour": "#7c3aed"
       }
     ],
     "resourceStreams": [

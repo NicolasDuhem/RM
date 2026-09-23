@@ -88,7 +88,8 @@ function build() {
     ['`shortName`', 'no', 'A shorter label for the roadmap bar.'],
     ['`description`', 'no', 'What the programme covers.'],
     ['`businessOutcome`', 'no', 'The outcome in business terms, not technical terms.'],
-    ['`owner`', 'no', 'A name from the people list, or `""`.'],
+    ['`productOwners`', 'no', 'A list of names from the product owner list, or `[]`.'],
+    ['`deliveryOwners`', 'no', 'A list of names from the delivery owner list, or `[]`.'],
     ['`status`', 'no', 'A status id from the list below.'],
     ['`priority`', 'no', 'A priority id from the list below.'],
     ['`notes`', 'no', 'Anything else worth recording.']
@@ -109,8 +110,8 @@ function build() {
     ['`currentPhase`', 'no', 'A milestone type id - where the work is now.'],
     ['`startDate`, `endDate`', 'no', 'ISO dates. These place the bar on the roadmap.'],
     ['`targetDate`', 'no', 'A date it is aimed at, if different from the end date.'],
-    ['`owner`', 'no', 'A name from the people list, or `""`.'],
-    ['`businessOwner`, `productOwner`, `technicalOwner`, `deliveryOwner`', 'no', 'Names from the people list, or `""`.'],
+    ['`productOwners`', 'no', 'A list of names from the product owner list. Several are allowed. `[]` if unsure.'],
+    ['`deliveryOwners`', 'no', 'A list of names from the delivery owner list. Several are allowed. `[]` if unsure.'],
     ['`description`', 'no', 'What the change is.'],
     ['`businessOutcome`', 'no', 'Why it is worth doing.'],
     ['`problemStatement`', 'no', 'The problem it solves today.'],
@@ -130,7 +131,7 @@ function build() {
     ['`name`', 'yes', 'The task, in a few words.'],
     ['`description`', 'no', 'What doing it involves.'],
     ['`status`', 'no', 'A status id from the list below.'],
-    ['`owner`', 'no', 'A name from the people list, or `""`.'],
+    ['`owner`', 'no', 'One name, from either owner list, or `""`.'],
     ['`stream`', 'no', 'A resource stream id, only when it differs from the system change.'],
     ['`okrIds`', 'no', 'A list of OKR ids this task moves. Objective or key result ids, from the list below.'],
     ['`links`', 'no', 'External links: `[{ "label": "Jira ABC-1", "url": "https://..." }]`. As many as you like.'],
@@ -175,12 +176,19 @@ function build() {
   w();
   w('### People');
   w();
-  w('Owner fields hold the **name**, written exactly as below. Anybody not on');
-  w('this list must be left as `""`.');
+  w('Owner fields hold the **name**, written exactly as below. A programme or');
+  w('system change may name several of each. Anybody not on these lists must be');
+  w('left out.');
   w();
-  w(active(settings.people).length
-    ? active(settings.people).map(function (person) { return '* ' + person.name; }).join('\n')
-    : '_No people have been set up yet. Leave every owner field as `""`._');
+  w('**Product owners**');
+  w();
+  w(peopleList(settings.productOwners));
+  w();
+  w('**Delivery owners**');
+  w();
+  w(peopleList(settings.deliveryOwners));
+  w();
+  w('A task has a single `owner`, who may come from either list.');
   w();
   w('### OKRs');
   w();
@@ -194,7 +202,7 @@ function build() {
   w('* Only `programmes` and `roadmapItems` in the file, nothing else.');
   w('* No `id` fields anywhere - the tool assigns them.');
   w('* Every id used for a status, priority, system, type, stream or OKR appears in the lists above.');
-  w('* Every owner is a name from the people list, or `""`.');
+  w('* Every owner is a name from the matching list; `[]` or `""` when nobody fits.');
   w('* Every task has `days`, even when the owner and stream are empty.');
   w('* Every system change points at a programme by name.');
   w('* Dates are `YYYY-MM-DD`, and no end date is before its start date.');
@@ -257,6 +265,12 @@ function optionSection(title, list) {
   return lines.join('\n');
 }
 
+function peopleList(list) {
+  const entries = active(list);
+  if (!entries.length) return '_Nobody set up yet - leave this empty._';
+  return entries.map(function (person) { return '* ' + person.name; }).join('\n');
+}
+
 function okrSection(okrs) {
   const objectives = active(okrs);
   if (!objectives.length) return '_No OKRs have been set up yet. Leave `okrIds` empty._';
@@ -288,7 +302,8 @@ function example(settings, resourceTypes) {
         shortName: 'Dealer Self-Service',
         description: 'Let dealers do for themselves what they ring us about today.',
         businessOutcome: 'Fewer support calls and faster answers for dealers.',
-        owner: firstName(settings.people, ''),
+        productOwners: firstName(settings.productOwners, '') ? [firstName(settings.productOwners, '')] : [],
+        deliveryOwners: [],
         status: idOf(settings.statuses, 'discovery', ''),
         priority: idOf(settings.priorities, 'high', ''),
         notes: ''
@@ -309,11 +324,8 @@ function example(settings, resourceTypes) {
         startDate: '2027-03-01',
         endDate: '2027-05-31',
         targetDate: '',
-        owner: '',
-        businessOwner: '',
-        productOwner: '',
-        technicalOwner: '',
-        deliveryOwner: '',
+        productOwners: [],
+        deliveryOwners: [],
         description: 'Show the live status of an order in the dealer portal.',
         businessOutcome: 'Dealers stop ringing to ask where an order is.',
         problemStatement: 'Order status is only visible to the internal team.',

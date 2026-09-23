@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T05:33:18.956Z",
+  "updatedAt": "2026-09-23T06:11:46.586Z",
   "records": [
     {
       "id": "RM-0001",
@@ -22,10 +22,12 @@
       "targetDate": "2026-10-31",
       "status": "build",
       "priority": "critical",
-      "businessOwner": "Nicolas",
-      "productOwner": "Nicolas",
-      "technicalOwner": "",
-      "deliveryOwner": "",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
       "owner": "Nicolas",
       "description": "Data model in Salesforce holding the accreditation each dealer holds, with effective dates.",
       "businessOutcome": "One authoritative record of what a dealer is accredited for.",
@@ -171,9 +173,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -194,11 +196,13 @@
       "targetDate": "2026-12-15",
       "status": "definition",
       "priority": "high",
-      "businessOwner": "Jake",
-      "productOwner": "Jake",
-      "technicalOwner": "",
-      "deliveryOwner": "",
-      "owner": "Jake",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
+      "owner": "Nicolas",
       "description": "Matrix mapping accreditation to product categories and channels.",
       "businessOutcome": "A maintainable rule set rather than hard-coded restrictions.",
       "problemStatement": "",
@@ -297,9 +301,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -321,11 +325,13 @@
       "targetDate": "2027-02-15",
       "status": "ready",
       "priority": "high",
-      "businessOwner": "Jake",
-      "productOwner": "Jake",
-      "technicalOwner": "",
-      "deliveryOwner": "",
-      "owner": "Jake",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
+      "owner": "Nicolas",
       "description": "Apply the accreditation matrix to the catalogue so ineligible products are not orderable.",
       "businessOutcome": "Dealers cannot order products they are not accredited for.",
       "problemStatement": "",
@@ -431,9 +437,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -455,10 +461,12 @@
       "targetDate": "2026-11-30",
       "status": "discovery",
       "priority": "high",
-      "businessOwner": "Sarah",
-      "productOwner": "Sarah",
-      "technicalOwner": "",
-      "deliveryOwner": "",
+      "productOwners": [
+        "Sarah"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
       "owner": "Sarah",
       "description": "Define the product master attributes, ownership and the golden source for each attribute.",
       "businessOutcome": "Agreed definition of product data before any PIM investment.",
@@ -555,9 +563,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -579,10 +587,12 @@
       "targetDate": "2027-01-31",
       "status": "idea",
       "priority": "medium",
-      "businessOwner": "Sarah",
-      "productOwner": "Sarah",
-      "technicalOwner": "",
-      "deliveryOwner": "",
+      "productOwners": [
+        "Sarah"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
       "owner": "Sarah",
       "description": "Decide and implement where translations are mastered and how they are published.",
       "businessOutcome": "Localised content without manual spreadsheet rounds.",
@@ -664,9 +674,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -687,10 +697,12 @@
       "targetDate": "2027-03-31",
       "status": "idea",
       "priority": "medium",
-      "businessOwner": "Sarah",
-      "productOwner": "Sarah",
-      "technicalOwner": "",
-      "deliveryOwner": "",
+      "productOwners": [
+        "Sarah"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
       "owner": "Sarah",
       "description": "Evaluate PIM options against the agreed product data definition.",
       "businessOutcome": "An evidence-based recommendation on PIM.",
@@ -752,9 +764,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -776,11 +788,13 @@
       "targetDate": "2026-11-30",
       "status": "build",
       "priority": "critical",
-      "businessOwner": "Jake",
-      "productOwner": "Jake",
-      "technicalOwner": "",
-      "deliveryOwner": "",
-      "owner": "Jake",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
+      "owner": "Nicolas",
       "description": "Post platform orders into NetSuite with entity, pricing and tax handling.",
       "businessOutcome": "Orders reach finance without rekeying.",
       "problemStatement": "",
@@ -917,9 +931,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -941,11 +955,13 @@
       "targetDate": "2026-12-15",
       "status": "definition",
       "priority": "high",
-      "businessOwner": "Jake",
-      "productOwner": "Jake",
-      "technicalOwner": "",
-      "deliveryOwner": "",
-      "owner": "Jake",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
+      "owner": "Nicolas",
       "description": "Publish inventory from NetSuite to the platform on a reliable schedule.",
       "businessOutcome": "Dealers see availability that reflects the warehouse.",
       "problemStatement": "",
@@ -1041,9 +1057,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -1065,11 +1081,13 @@
       "targetDate": "2027-02-28",
       "status": "ready",
       "priority": "high",
-      "businessOwner": "Jake",
-      "productOwner": "Jake",
-      "technicalOwner": "",
-      "deliveryOwner": "",
-      "owner": "Jake",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
+      "owner": "Nicolas",
       "description": "Enable the USA entity on the platform with local pricing, tax and logistics.",
       "businessOutcome": "USA dealers ordering through the same platform.",
       "problemStatement": "",
@@ -1165,9 +1183,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -1188,11 +1206,13 @@
       "targetDate": "2027-05-31",
       "status": "idea",
       "priority": "medium",
-      "businessOwner": "Jake",
-      "productOwner": "Jake",
-      "technicalOwner": "",
-      "deliveryOwner": "",
-      "owner": "Jake",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
+      "owner": "Nicolas",
       "description": "Enable the Singapore entity on the platform.",
       "businessOutcome": "APAC dealers ordering through the same platform.",
       "problemStatement": "",
@@ -1253,9 +1273,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -1276,11 +1296,13 @@
       "targetDate": "2027-08-31",
       "status": "idea",
       "priority": "medium",
-      "businessOwner": "Jake",
-      "productOwner": "Jake",
-      "technicalOwner": "",
-      "deliveryOwner": "",
-      "owner": "Jake",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
+      "owner": "Nicolas",
       "description": "Enable the Japan entity on the platform, including local language.",
       "businessOutcome": "Japanese dealers ordering through the same platform.",
       "problemStatement": "",
@@ -1341,9 +1363,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -1365,10 +1387,12 @@
       "targetDate": "",
       "status": "idea",
       "priority": "medium",
-      "businessOwner": "Priya",
-      "productOwner": "Priya",
-      "technicalOwner": "",
-      "deliveryOwner": "",
+      "productOwners": [
+        "Priya"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
       "owner": "Priya",
       "description": "Show availability across entities so a dealer can be served from another warehouse.",
       "businessOutcome": "Fewer lost orders when local stock is unavailable.",
@@ -1409,9 +1433,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     }
   ]

@@ -136,23 +136,49 @@
 
   function showErrors(state, errors) {
     Object.keys(state.inputs).forEach(function (name) {
-      const holder = state.inputs[name].input.closest('.definition');
+      const holder = holderOf(state.inputs[name].input);
       if (!holder) return;
       holder.classList.remove('field-invalid');
       const slot = holder.querySelector('.field-error');
       if (slot) slot.textContent = '';
     });
-    let unmatched = [];
+    const unmatched = [];
     (errors || []).forEach(function (error) {
       const entry = state.inputs[error.field];
-      if (!entry) { unmatched.push(error); return; }
-      const holder = entry.input.closest('.definition');
+      const holder = entry ? holderOf(entry.input) : null;
       if (!holder) { unmatched.push(error); return; }
       holder.classList.add('field-invalid');
       const slot = holder.querySelector('.field-error');
       if (slot) slot.textContent = error.message;
+      if (holder.scrollIntoView) holder.scrollIntoView({ block: 'nearest' });
     });
     return unmatched;
+  }
+
+  function holderOf(input) {
+    return input.closest('.definition') || input.closest('.ribbon-cell') || input.closest('.hero-field');
+  }
+
+  /**
+   * The ribbon across the top of a panel: the facts you want at a glance,
+   * in one compact strip. In edit mode each cell turns into its control in
+   * place, so reading and editing keep the same shape.
+   */
+  function ribbon(state, cells) {
+    return el('div', 'ribbon', cells.filter(Boolean).map(function (cell) {
+      if (cell.readOnly || !state.editing) {
+        return el('div', 'ribbon-cell' + (cell.wide ? ' ribbon-cell-wide' : ''), [
+          el('span', 'ribbon-label', cell.label),
+          el('div', 'ribbon-value', cell.render ? cell.render() : readValue(cell, RM.get(state.draft, cell.name)))
+        ]);
+      }
+      const input = buildInput(cell, RM.get(state.draft, cell.name));
+      state.inputs[cell.name] = { input: input, spec: cell };
+      return el('div', 'ribbon-cell ribbon-cell-edit' + (cell.wide ? ' ribbon-cell-wide' : ''), [
+        el('span', 'ribbon-label', cell.label),
+        el('div', 'ribbon-value', [input, el('span', 'field-error')])
+      ]);
+    }));
   }
 
   function group(title, children) {
@@ -239,6 +265,9 @@
       const current = state.id ? (RM.itemById(state.id) || state.draft) : state.draft;
       if (!state.editing && state.id) state.draft = JSON.parse(JSON.stringify(current));
 
+      // One registry per draw: the ribbon and the open tab both write into it,
+      // and saving reads every control that is on screen.
+      state.inputs = {};
       drawHero();
       drawTabs();
       drawPanel();
@@ -248,21 +277,53 @@
     function drawHero() {
       RM.clear(hero);
       const draft = state.draft;
+      const effort = RM.effort.ofItem(state.id ? (RM.itemById(state.id) || draft) : draft);
+      const taskCount = ((state.id ? (RM.itemById(state.id) || draft) : draft).tasks || []).length;
+
       RM.append(hero, [
-        el('div', 'detail-hero-main', [
-          el('div', 'detail-eyebrow', programmeName(draft.programmeId) || 'No programme yet'),
-          el('h3', 'detail-title', draft.title || (state.isNew ? 'New system change' : '')),
-          draft.businessOutcome ? el('p', 'detail-lede', draft.businessOutcome) : null
+        el('div', 'hero-head', [
+          el('div', 'hero-titles', [
+            heroField(state, { name: 'title', placeholder: 'What is changing?', title: true,
+              fallback: state.isNew ? 'New system change' : '' }),
+            heroField(state, { name: 'businessOutcome', placeholder: 'The outcome in business terms', lede: true, rows: 2 })
+          ]),
+          el('div', 'hero-facts', [
+            fact('Effort from tasks', RM.effort.format(RM.effort.total(effort)) + ' d'),
+            fact('Tasks', String(taskCount))
+          ])
         ]),
-        el('div', 'detail-hero-meta', [
-          (draft.systemAreas || []).length
-            ? el('span', 'chip-list', RM.options.names('systems', draft.systemAreas).map(function (name) {
-              return el('span', 'pill', name);
-            }))
-            : null,
-          draft.stream ? el('span', 'pill', RM.options.name('resourceStreams', draft.stream)) : null,
-          RM.statusBadge(draft.status),
-          RM.priorityBadge(draft.priority)
+        ribbon(state, [
+          {
+            name: 'programmeId', label: 'Programme', type: 'select', emptyLabel: '- choose -', wide: true,
+            options: function () {
+              return RM.records('programmes').map(function (p) { return { value: p.id, label: p.name }; });
+            }
+          },
+          { name: 'status', label: 'Status', type: 'select', list: 'statuses', badge: 'status', options: RM.selectOptions('statuses') },
+          { name: 'priority', label: 'Priority', type: 'select', list: 'priorities', badge: 'priority', options: RM.selectOptions('priorities') },
+          { name: 'currentPhase', label: 'Phase', type: 'select', list: 'milestoneTypes', options: RM.selectOptions('milestoneTypes') },
+          { name: 'startDate', label: 'Start', type: 'date' },
+          { name: 'endDate', label: 'End', type: 'date' },
+          { name: 'targetDate', label: 'Target', type: 'date' },
+          {
+            name: 'systemAreas', label: 'Systems', type: 'multiselect', list: 'systems', wide: true,
+            options: RM.selectOptions('systems'), placeholder: 'Pick the systems'
+          },
+          {
+            name: 'types', label: 'Types', type: 'multiselect', list: 'itemTypes', wide: true,
+            options: RM.selectOptions('itemTypes'), placeholder: 'Pick the types'
+          },
+          { name: 'stream', label: 'Stream', type: 'select', list: 'resourceStreams', options: RM.selectOptions('resourceStreams') },
+          { name: 'subArea', label: 'Sub area' },
+          { name: 'shortTitle', label: 'Short title', wide: true },
+          {
+            name: 'productOwners', label: 'Product owners', type: 'multiselect', names: true, wide: true,
+            options: RM.productOwnerOptions, placeholder: 'Nobody yet'
+          },
+          {
+            name: 'deliveryOwners', label: 'Delivery owners', type: 'multiselect', names: true, wide: true,
+            options: RM.deliveryOwnerOptions, placeholder: 'Nobody yet'
+          }
         ])
       ]);
     }
@@ -283,7 +344,6 @@
 
     function drawPanel() {
       RM.clear(panel);
-      state.inputs = {};
       panel.appendChild(itemTab(state, draw, handle));
     }
 
@@ -340,6 +400,28 @@
     }
   }
 
+  function fact(label, value) {
+    return el('div', 'hero-fact', [
+      el('span', 'hero-fact-value', value),
+      el('span', 'hero-fact-label', label)
+    ]);
+  }
+
+  /** The title and the one-line outcome, edited where they are displayed. */
+  function heroField(state, spec) {
+    const value = RM.get(state.draft, spec.name);
+    if (!state.editing) {
+      if (spec.title) return el('h3', 'detail-title', value || spec.fallback || '');
+      return value ? el('p', 'detail-lede', value) : null;
+    }
+    const input = spec.title
+      ? el('input', { class: 'input hero-input-title', type: 'text', placeholder: spec.placeholder || '' })
+      : el('textarea', { class: 'input hero-input-lede', rows: spec.rows || 2, placeholder: spec.placeholder || '' });
+    input.value = value === undefined || value === null ? '' : String(value);
+    state.inputs[spec.name] = { input: input, spec: { name: spec.name, type: spec.title ? 'text' : 'textarea' } };
+    return el('div', 'hero-field', [input, el('span', 'field-error')]);
+  }
+
   function programmeName(programmeId) {
     const programme = RM.programmeById(programmeId);
     return programme ? programme.name : '';
@@ -358,62 +440,11 @@
     }
   }
 
-  /** A name field: picked from the people maintained in Settings. */
-  function person(name, label) {
-    return {
-      name: name, label: label, type: 'select',
-      options: RM.peopleOptions, emptyLabel: '- nobody yet -'
-    };
-  }
-
   function summaryTab(state) {
     const draft = state.draft;
     return el('div', 'stack', [
-      group('Identification', [
-        field(state, {
-          name: 'title', label: 'Title', full: true,
-          placeholder: 'What is changing?'
-        }),
-        field(state, { name: 'shortTitle', label: 'Short title', hint: 'Shown on the roadmap bar.' }),
-        field(state, {
-          name: 'programmeId', label: 'Programme', type: 'select', emptyLabel: '- choose a programme -',
-          options: function () {
-            return RM.records('programmes').map(function (p) { return { value: p.id, label: p.name }; });
-          }
-        }),
-        field(state, {
-          name: 'systemAreas', label: 'Systems', type: 'multiselect', list: 'systems',
-          options: RM.selectOptions('systems'), placeholder: 'Choose one or more systems'
-        }),
-        field(state, {
-          name: 'types', label: 'Types', type: 'multiselect', list: 'itemTypes',
-          options: RM.selectOptions('itemTypes'), placeholder: 'Choose one or more types'
-        }),
-        field(state, { name: 'subArea', label: 'Sub area' }),
-        field(state, {
-          name: 'stream', label: 'Resource stream', type: 'select', list: 'resourceStreams',
-          options: RM.selectOptions('resourceStreams'),
-          hint: 'Capacity is planned per stream. Tasks inherit this unless they set their own.'
-        })
-      ]),
-      group('Status and dates', [
-        field(state, { name: 'status', label: 'Status', type: 'select', list: 'statuses', badge: 'status', options: RM.selectOptions('statuses') }),
-        field(state, { name: 'priority', label: 'Priority', type: 'select', list: 'priorities', badge: 'priority', options: RM.selectOptions('priorities') }),
-        field(state, { name: 'currentPhase', label: 'Current phase', type: 'select', list: 'milestoneTypes', options: RM.selectOptions('milestoneTypes') }),
-        field(state, { name: 'startDate', label: 'Start date', type: 'date' }),
-        field(state, { name: 'endDate', label: 'End date', type: 'date' }),
-        field(state, { name: 'targetDate', label: 'Target date', type: 'date' })
-      ]),
-      group('Ownership', [
-        field(state, person('owner', 'Owner')),
-        field(state, person('businessOwner', 'Business owner')),
-        field(state, person('productOwner', 'Product owner')),
-        field(state, person('technicalOwner', 'Technical owner')),
-        field(state, person('deliveryOwner', 'Delivery owner'))
-      ]),
       group('Business information', [
         field(state, { name: 'description', label: 'Description', type: 'textarea', full: true, rows: 3 }),
-        field(state, { name: 'businessOutcome', label: 'Business outcome', type: 'textarea', full: true, rows: 2 }),
         field(state, { name: 'problemStatement', label: 'Problem statement', type: 'textarea', full: true, rows: 2 }),
         field(state, { name: 'comments', label: 'Comments', type: 'textarea', full: true, rows: 2 }),
         field(state, { name: 'notes', label: 'Notes', type: 'textarea', full: true, rows: 2 })
@@ -677,29 +708,42 @@
     const linksHost = el('div', 'link-editor');
     drawLinks();
 
+    // The task name sits on its own line like a heading; everything else is a
+    // compact strip underneath, so the editor reads like the panels do.
     const form = RM.form([
-      { name: 'name', label: 'Task name', required: true, full: true },
+      { name: 'name', label: 'Task name', required: true, full: true, className: 'field-headline' },
       { name: 'status', label: 'Status', type: 'select', options: RM.selectOptions('statuses') },
       { name: 'owner', label: 'Owner', type: 'select', options: RM.peopleOptions, emptyLabel: '- nobody yet -' },
       {
         name: 'stream', label: 'Resource stream', type: 'select', options: RM.selectOptions('resourceStreams'),
-        emptyLabel: '- same as the system change -',
-        hint: item.stream ? 'Defaults to ' + RM.options.name('resourceStreams', item.stream) + '.' : 'The system change has no stream yet.'
-      },
-      { name: 'description', label: 'Description', type: 'textarea', full: true, rows: 3 },
-      { type: 'section', label: 'Effort required (days)' }
-    ].concat(resourceTypes.map(function (type) {
+        emptyLabel: item.stream ? 'Same as the change (' + RM.options.name('resourceStreams', item.stream) + ')' : '- not set -'
+      }
+    ], draft);
+
+    form.element.classList.add('form-grid-trio');
+
+    const effortForm = RM.form(resourceTypes.map(function (type) {
       return { name: 'days.' + type.id, label: type.name, type: 'number', min: 0, step: '0.5' };
-    })).concat([
+    }), draft);
+    effortForm.element.classList.add('form-grid-compact');
+
+    const detailForm = RM.form([
+      { name: 'description', label: 'Description', type: 'textarea', full: true, rows: 3 },
       { name: 'notes', label: 'Notes', type: 'textarea', full: true, rows: 2 }
-    ]), draft);
+    ], draft);
 
     const body = el('div', 'stack', [
       form.element,
-      el('section', 'panel-group', [
-        el('h4', 'panel-group-title', 'OKR impacted'),
-        okrPicker.element,
-        el('p', 'field-hint', 'Objectives and their key results are maintained in Settings.')
+      el('div', 'task-columns', [
+        el('section', 'panel-group', [
+          el('h4', 'panel-group-title', 'Effort required (days)'),
+          effortForm.element
+        ]),
+        el('section', 'panel-group', [
+          el('h4', 'panel-group-title', 'OKR impacted'),
+          okrPicker.element,
+          el('p', 'field-hint', 'Objectives and their key results are maintained in Settings.')
+        ])
       ]),
       el('section', 'panel-group', [
         el('div', 'section-head', [
@@ -711,7 +755,8 @@
           })
         ]),
         linksHost
-      ])
+      ]),
+      detailForm.element
     ]);
 
     const handle = RM.modal({
@@ -758,7 +803,7 @@
     }
 
     function save() {
-      const values = form.read();
+      const values = Object.assign({}, form.read(), effortForm.read(), detailForm.read());
       const links = readLinks();
       const list = (item.tasks || []).slice();
       const record = Object.assign({}, existing || {}, values, {
@@ -780,7 +825,10 @@
         RM.toast('Task saved.', 'success');
         return RM.refresh().then(function () { if (onSaved) onSaved(); });
       }).catch(function (err) {
-        if (err && err.code === 'VALIDATION' && err.detail) form.showErrors(err.detail.errors);
+        if (err && err.code === 'VALIDATION' && err.detail) {
+          form.showErrors(err.detail.errors);
+          detailForm.showErrors(err.detail.errors);
+        }
         RM.handleError(err, 'Could not save the task');
       });
     }
@@ -1049,47 +1097,64 @@
 
       RM.append(body, [
         el('div', 'detail-hero', [
-          el('div', 'detail-hero-main', [
-            el('div', 'detail-eyebrow', 'Programme'),
-            el('h3', 'detail-title', state.draft.name || 'New programme'),
-            state.draft.businessOutcome ? el('p', 'detail-lede', state.draft.businessOutcome) : null
+          el('div', 'hero-head', [
+            el('div', 'hero-titles', [
+              heroField(state, { name: 'name', placeholder: 'Programme name', title: true, fallback: 'New programme' }),
+              heroField(state, { name: 'businessOutcome', placeholder: 'The outcome in business terms', lede: true, rows: 2 })
+            ]),
+            el('div', 'hero-facts', [
+              fact('Start', range.scheduled ? RM.dates.formatDate(range.startDate) : '\u2013'),
+              fact('End', range.scheduled ? RM.dates.formatDate(range.endDate) : '\u2013'),
+              fact('Changes', String(children.length)),
+              fact('Effort', RM.effort.format(RM.effort.total(effort)) + ' d')
+            ])
           ]),
-          el('div', 'detail-hero-meta', [RM.statusBadge(state.draft.status), RM.priorityBadge(state.draft.priority)])
+          ribbon(state, [
+            { name: 'status', label: 'Status', type: 'select', list: 'statuses', badge: 'status', options: RM.selectOptions('statuses') },
+            { name: 'priority', label: 'Priority', type: 'select', list: 'priorities', badge: 'priority', options: RM.selectOptions('priorities') },
+            {
+              name: 'productOwners', label: 'Product owners', type: 'multiselect', names: true, wide: true,
+              options: RM.productOwnerOptions, placeholder: 'Nobody yet'
+            },
+            {
+              name: 'deliveryOwners', label: 'Delivery owners', type: 'multiselect', names: true, wide: true,
+              options: RM.deliveryOwnerOptions, placeholder: 'Nobody yet'
+            },
+            { name: 'shortName', label: 'Short name', wide: true },
+            { name: 'colour', label: 'Colour', type: 'colour' }
+          ])
         ]),
-        group('Programme', [
-          field(state, { name: 'name', label: 'Programme name', full: true }),
-          field(state, { name: 'shortName', label: 'Short name', hint: 'Used on the roadmap bar when space is tight.' }),
-          field(state, person('owner', 'Owner')),
-          field(state, { name: 'status', label: 'Status', type: 'select', list: 'statuses', badge: 'status', options: RM.selectOptions('statuses') }),
-          field(state, { name: 'priority', label: 'Priority', type: 'select', list: 'priorities', badge: 'priority', options: RM.selectOptions('priorities') }),
-          field(state, { name: 'colour', label: 'Colour', type: 'colour' })
-        ]),
-        group('Business', [
-          field(state, { name: 'businessOutcome', label: 'Business outcome', type: 'textarea', full: true, rows: 2 }),
+        group('Business information', [
           field(state, { name: 'description', label: 'Description', type: 'textarea', full: true, rows: 3 }),
           field(state, { name: 'notes', label: 'Notes', type: 'textarea', full: true, rows: 2 })
         ]),
-        state.id ? el('dl', 'definition-grid', [
-          RM.definition('Programme start', range.scheduled ? RM.dates.formatDate(range.startDate) : 'Not scheduled'),
-          RM.definition('Programme end', range.scheduled ? RM.dates.formatDate(range.endDate) : 'Not scheduled'),
-          RM.definition('System changes', String(children.length)),
-          RM.definition('Effort from tasks', RM.effort.format(RM.effort.total(effort)) + ' days')
+        state.id && resourceTypes.length && RM.effort.total(effort)
+          ? section('Effort by resource', el('div', 'chip-list', resourceTypes.map(function (type) {
+            return effort[type.id] ? el('span', 'pill', type.name + ': ' + RM.effort.format(effort[type.id]) + ' d') : null;
+          })))
+          : null,
+        state.id ? el('section', 'detail-section', [
+          el('div', 'section-head', [
+            el('h4', null, 'System changes (' + children.length + ')'),
+            RM.button('+ Add System Change', function () { handle.close(); openItemForm(null, state.id); })
+          ]),
+          children.length
+            ? el('div', 'mini-list', children.map(function (item) {
+              const itemEffort = RM.effort.total(RM.effort.ofItem(item));
+              return el('button', { class: 'mini-row', type: 'button', onclick: function () { handle.close(); openDetail(item.id); } }, [
+                el('span', 'mini-row-title', item.title),
+                el('span', 'mini-row-meta', [
+                  RM.statusBadge(item.status),
+                  el('span', 'muted', item.startDate ? RM.dates.formatDate(item.startDate) + ' \u2192 ' + RM.dates.formatDate(item.endDate) : 'Not scheduled'),
+                  el('span', 'muted', (item.tasks || []).length + ' task(s)'),
+                  itemEffort ? el('span', 'muted', RM.effort.format(itemEffort) + ' d') : null
+                ])
+              ]);
+            }))
+            : el('p', 'muted', 'No system changes yet.')
         ]) : null,
-        state.id && resourceTypes.length ? section('Effort by resource', el('div', 'chip-list', resourceTypes.map(function (type) {
-          return el('span', 'pill', type.name + ': ' + RM.effort.format(effort[type.id] || 0) + ' d');
-        }))) : null,
-        state.id ? section('System changes', children.length
-          ? el('div', 'mini-list', children.map(function (item) {
-            return el('button', { class: 'mini-row', type: 'button', onclick: function () { handle.close(); openDetail(item.id); } }, [
-              el('span', 'mini-row-title', item.title),
-              el('span', 'mini-row-meta', [
-                RM.statusBadge(item.status),
-                el('span', 'muted', item.startDate ? RM.dates.formatDate(item.startDate) + ' → ' + RM.dates.formatDate(item.endDate) : 'Not scheduled'),
-                el('span', 'muted', (item.tasks || []).length + ' task(s)')
-              ])
-            ]);
-          }))
-          : el('p', 'muted', 'No system changes yet.')) : null
+        state.isNew ? null : el('p', 'muted small',
+          'Last updated ' + RM.dates.formatDateTime(state.draft.updatedAt) + (state.draft.updatedBy ? ' by ' + state.draft.updatedBy : ''))
       ]);
 
       RM.clear(footer);
@@ -1106,7 +1171,6 @@
         RM.button('Delete', function () { deleteProgramme(RM.programmeById(state.id), handle); }, 'danger'),
         el('span', 'foot-spacer'),
         RM.button('View history', function () { openHistory(state.id, state.draft.name); }),
-        RM.button('+ Add System Change', function () { handle.close(); openItemForm(null, state.id); }),
         RM.button('Close', function () { handle.close(); }),
         RM.button('Edit', function () { state.editing = true; draw(); }, 'primary')
       ]);

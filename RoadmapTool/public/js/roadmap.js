@@ -208,19 +208,8 @@
         segment('Year', ui.timescale === 'year', function () { setScale('year'); })
       ]),
       el('div', 'toolbar-spacer'),
-      el('label', 'toggle', [
-        (function () {
-          const box = el('input', { type: 'checkbox', class: 'checkbox' });
-          box.checked = ui.showMilestones;
-          box.addEventListener('change', function () {
-            ui.showMilestones = box.checked;
-            RM.savePrefs();
-            RM.renderView();
-          });
-          return box;
-        }()),
-        el('span', null, 'Milestones')
-      ]),
+      toggle('Milestones', 'showMilestones'),
+      toggle('Key dates', 'showKeyDates'),
       RM.button('Expand all', function () {
         RM.state.ui.collapsed = {};
         const expanded = {};
@@ -243,6 +232,16 @@
 
     function segment(label, active, onClick) {
       return el('button', { class: 'segment' + (active ? ' segment-active' : ''), type: 'button', onclick: onClick }, label);
+    }
+    function toggle(label, key) {
+      const box = el('input', { type: 'checkbox', class: 'checkbox' });
+      box.checked = !!ui[key];
+      box.addEventListener('change', function () {
+        ui[key] = box.checked;
+        RM.savePrefs();
+        RM.renderView();
+      });
+      return el('label', 'toggle', [box, el('span', null, label)]);
     }
     function setMode(mode) {
       ui.roadmapMode = mode;
@@ -290,8 +289,8 @@
         select('okr', 'OKR', RM.okrs.flat().map(function (entry) {
           return { value: entry.id, label: (entry.level === 2 ? '\u2014 ' : '') + entry.name };
         })),
-        select('owner', 'Owner', RM.peopleOptions()),
-        select('productOwner', 'Product Owner', RM.peopleOptions()),
+        select('productOwner', 'Product Owner', RM.productOwnerOptions()),
+        select('deliveryOwner', 'Delivery Owner', RM.deliveryOwnerOptions()),
         dateInput('dateFrom', 'From'),
         dateInput('dateTo', 'To')
       ])
@@ -341,7 +340,7 @@
     const filters = RM.state.ui.filters;
     const labels = {
       programme: 'Programme', system: 'System', status: 'Status', priority: 'Priority',
-      type: 'Type', phase: 'Phase', owner: 'Owner', productOwner: 'Product Owner',
+      type: 'Type', phase: 'Phase', productOwner: 'Product Owner', deliveryOwner: 'Delivery Owner',
       stream: 'Stream', okr: 'OKR', dateFrom: 'From', dateTo: 'To', search: 'Search'
     };
     const display = {
@@ -406,14 +405,19 @@
         el('button', { class: 'row-title row-title-programme', type: 'button', onclick: function () { RM.editor.openProgrammeDetail(programme.id); } }, programme.name),
         el('div', 'row-meta', [
           RM.statusBadge(programme.status),
-          programme.owner ? el('span', 'muted', programme.owner) : null,
+          ownerLabel(programme) ? el('span', { class: 'muted row-meta-owner', title: ownerTitle(programme) }, ownerLabel(programme)) : null,
           el('span', 'muted', children.length + ' change' + (children.length === 1 ? '' : 's')),
           (function () {
             const effort = RM.effort.total(RM.effort.ofProgramme(programme.id));
             return effort ? el('span', 'muted', RM.effort.format(effort) + ' d') : null;
           }()),
+          // The full dates are on the bar's tooltip and in the panel; the row
+          // itself only needs the short form, and may trail off if space runs out.
           range.scheduled
-            ? el('span', 'muted', RM.dates.formatDate(range.startDate) + ' → ' + RM.dates.formatDate(range.endDate))
+            ? el('span', {
+              class: 'muted row-meta-dates',
+              title: RM.dates.formatDate(range.startDate) + ' → ' + RM.dates.formatDate(range.endDate)
+            }, shortDate(range.startDate) + ' → ' + shortDate(range.endDate))
             : el('span', 'pill pill-quiet', 'Not scheduled')
         ])
       ])
@@ -459,6 +463,20 @@
       ]),
       RM.gantt.timeCell(timeline, [])
     ]);
+  }
+
+  /** The people shown on a row: product owners first, then delivery. */
+  function ownerLabel(record) {
+    const owners = (record.productOwners || []).concat(record.deliveryOwners || []);
+    if (!owners.length) return '';
+    return owners.length > 1 ? owners[0] + ' +' + (owners.length - 1) : owners[0];
+  }
+
+  function ownerTitle(record) {
+    const parts = [];
+    if ((record.productOwners || []).length) parts.push('Product: ' + record.productOwners.join(', '));
+    if ((record.deliveryOwners || []).length) parts.push('Delivery: ' + record.deliveryOwners.join(', '));
+    return parts.join('\n');
   }
 
   /** Level 3: one task under a system change. */
@@ -549,7 +567,7 @@
             ? el('span', 'pill', RM.options.names('systems', item.systemAreas).join(', '))
             : null,
           RM.statusBadge(item.status),
-          item.owner ? el('span', 'muted', item.owner) : null,
+          ownerLabel(item) ? el('span', { class: 'muted row-meta-owner', title: ownerTitle(item) }, ownerLabel(item)) : null,
           tasks.length ? el('span', 'muted', tasks.length + ' task' + (tasks.length === 1 ? '' : 's')) : null,
           effort ? el('span', 'muted', RM.effort.format(effort) + ' d') : null
         ])
@@ -663,7 +681,12 @@
       programme ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Programme'), el('span', null, programme.name)]) : null,
       el('div', 'tooltip-dates', RM.dates.formatDate(item.startDate) + ' → ' + RM.dates.formatDate(item.endDate)),
       el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Status'), el('span', null, RM.options.name('statuses', item.status) || 'Not set')]),
-      item.owner ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Owner'), el('span', null, item.owner)]) : null,
+      (item.productOwners || []).length
+        ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Product owner'), el('span', null, item.productOwners.join(', '))])
+        : null,
+      (item.deliveryOwners || []).length
+        ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Delivery owner'), el('span', null, item.deliveryOwners.join(', '))])
+        : null,
       el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Dependencies'), el('span', null, String(count))]),
       el('div', 'tooltip-hint', 'Click for More Info')
     ];
@@ -692,7 +715,9 @@
         ? RM.dates.formatDate(range.startDate) + ' → ' + RM.dates.formatDate(range.endDate)
         : 'Not scheduled'),
       el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Status'), el('span', null, RM.options.name('statuses', programme.status) || 'Not set')]),
-      programme.owner ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Owner'), el('span', null, programme.owner)]) : null,
+      ownerTitle(programme)
+        ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Owners'), el('span', null, ownerLabel(programme))])
+        : null,
       el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Changes'), el('span', null, String(children.length))]),
       programme.businessOutcome ? el('div', 'tooltip-outcome', programme.businessOutcome) : null
     ];
@@ -802,6 +827,9 @@
       el('span', 'legend-item', [el('span', 'legend-swatch legend-task-bar'), 'Task (runs with its system change)']),
       el('span', 'legend-item', [el('span', 'legend-swatch legend-milestone'), 'Milestone']),
       el('span', 'legend-item', [el('span', 'legend-swatch legend-today'), 'Today']),
+      RM.state.ui.showKeyDates && RM.keyDates().length
+        ? el('span', 'legend-item', [el('span', 'legend-swatch legend-key-date'), 'Key date (maintained in Settings)'])
+        : null,
       RM.state.ui.roadmapMode === 'detailed'
         ? el('span', 'legend-item muted', 'Drag a bar to move it, or drag its edges to resize. Every change is saved with the same conflict check as the form.')
         : el('span', 'legend-item muted', 'Executive view shows programmes only. Switch to Detailed View to see and edit the system changes underneath.')

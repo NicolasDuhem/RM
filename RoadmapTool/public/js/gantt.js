@@ -254,6 +254,7 @@
 
   function renderHeader(timeline, leftLabel) {
     const el = RM.el;
+    const flags = keyDateFlags(timeline);
     const groups = el('div', 'tl-groups', timeline.groups.map(function (group) {
       return el('div', { class: 'tl-group', style: { left: group.left + 'px', width: group.width + 'px' } }, group.label);
     }));
@@ -264,13 +265,28 @@
       ]);
     }));
 
-    return el('div', 'gantt-head', [
+    const rows = flags.reduce(function (max, flag) {
+      return Math.max(max, Math.round(parseFloat(flag.style.top) / 16) + 1);
+    }, 0);
+    const extra = rows > 1 ? (rows - 1) * 16 : 0;
+
+    const head = el('div', 'gantt-head', [
       el('div', 'gantt-left gantt-head-left', leftLabel || 'Programme / Change'),
-      el('div', { class: 'gantt-time gantt-head-time', style: { width: timeline.totalWidth + 'px' } }, [
+      el('div', {
+        class: 'gantt-time gantt-head-time',
+        style: { width: timeline.totalWidth + 'px', height: (66 + extra) + 'px' }
+      }, [
+        flags,
         timeline.groups.length ? groups : null,
         cells
       ])
     ]);
+    if (extra) {
+      const time = head.querySelector('.gantt-head-time');
+      time.querySelector('.tl-groups').style.top = (14 + extra) + 'px';
+      time.querySelector('.tl-cells').style.top = (40 + extra) + 'px';
+    }
+    return head;
   }
 
   /** The scrolling area: sticky left column, scrolling time axis. */
@@ -285,18 +301,72 @@
 
   function timeCell(timeline, children) {
     const cell = RM.el('div', { class: 'gantt-time', style: { width: timeline.totalWidth + 'px' } }, children);
+    keyDatePositions(timeline).forEach(function (entry) {
+      cell.appendChild(RM.el('div', {
+        class: 'key-date-line',
+        style: { left: entry.x + 'px', borderColor: entry.colour },
+        title: entry.name + ' \u00b7 ' + RM.dates.formatDate(entry.date)
+      }));
+    });
     if (timeline.todayX !== null && RM.settings().showTodayLine !== false) {
       cell.appendChild(RM.el('div', { class: 'today-line', style: { left: timeline.todayX + 'px' } }));
     }
     return cell;
   }
 
+  /** Key dates that fall inside the visible timeline, with their x position. */
+  function keyDatePositions(timeline) {
+    if (!RM.state.ui.showKeyDates) return [];
+    return RM.keyDates().map(function (entry) {
+      const date = RM.dates.parseIso(entry.date);
+      if (!date || date < timeline.start || date >= timeline.endExclusive) return null;
+      return {
+        id: entry.id, name: entry.name, date: entry.date,
+        colour: entry.colour || '#b45309',
+        x: timeline.dateToX(date)
+      };
+    }).filter(Boolean).sort(function (a, b) { return a.x - b.x; });
+  }
+
+  /**
+   * The flags above the timeline. Two key dates close together would sit on
+   * top of each other, so they are stacked instead.
+   */
+  function keyDateFlags(timeline) {
+    const entries = keyDatePositions(timeline);
+    if (!entries.length) return [];
+    const rows = [];
+    // The TODAY flag owns the first row where it sits, so nothing lands on it.
+    if (timeline.todayX !== null && RM.settings().showTodayLine !== false) {
+      rows[0] = timeline.todayX + 26;
+    }
+    return entries.map(function (entry) {
+      const width = Math.min(190, 24 + entry.name.length * 6);
+      let row = 0;
+      while (rows[row] !== undefined && rows[row] > entry.x - width / 2 - 6) row += 1;
+      rows[row] = entry.x + width / 2;
+      return RM.el('div', {
+        class: 'key-date-flag',
+        style: {
+          left: entry.x + 'px',
+          top: (2 + row * 16) + 'px',
+          background: RM.fade(entry.colour, 0.14),
+          borderColor: RM.fade(entry.colour, 0.45),
+          color: entry.colour
+        },
+        title: entry.name + ' \u00b7 ' + RM.dates.formatDate(entry.date)
+      }, entry.name);
+    });
+  }
+
   function todayMarker(timeline) {
     if (timeline.todayX === null || RM.settings().showTodayLine === false) return null;
-    return RM.el('div', { class: 'today-flag', style: { left: timeline.todayX + 'px' } }, 'TODAY');
+    return RM.el('div', { class: 'today-flag', style: { left: timeline.todayX + 'px', top: '2px' } }, 'TODAY');
   }
 
   RM.gantt = {
+    keyDateFlags: keyDateFlags,
+    keyDatePositions: keyDatePositions,
     buildTimeline: buildTimeline,
     renderShell: renderShell,
     renderHeader: renderHeader,

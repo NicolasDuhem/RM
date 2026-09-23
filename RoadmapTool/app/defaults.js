@@ -22,6 +22,7 @@ function defaultSettings() {
     roadmapEnd: '',
     showMilestones: true,
     showTodayLine: true,
+    showKeyDates: true,
     backupsToKeep: 50,
     auditEntriesToKeep: 5000,
     workingDaysPerMonth: 21,
@@ -69,12 +70,15 @@ function defaultSettings() {
       { id: 'int', name: 'Integration', active: true },
       { id: 'data', name: 'Data Engineering', active: true }
     ],
-    /* Everybody who can be picked as an owner. Owner fields store the name,
-       so a name typed before this list existed still shows. */
-    people: list([
-      'Nicolas', 'Sarah', 'Jake', 'Priya', 'Commercial', 'Finance', 'Operations',
-      'Data team', 'Integration team'
-    ]),
+    /* The two owner lists. Owner fields store the name itself, so a name
+       entered before these lists existed still shows on its record. */
+    productOwners: list(['Nicolas', 'Sarah', 'Priya', 'Commercial']),
+    deliveryOwners: list(['Jake', 'Data team', 'Integration team', 'Operations', 'Finance']),
+    /* Dates the business plans around, drawn across the whole roadmap. */
+    keyDates: [
+      { id: 'kd-peak', name: 'Peak season freeze', date: '2026-11-15', colour: '#b45309' },
+      { id: 'kd-year-end', name: 'Financial year end', date: '2027-03-31', colour: '#7c3aed' }
+    ],
     /* Resource hierarchy, level 2: the stream the capacity sits in. */
     resourceStreams: list(['B2B', 'D2C', 'NetSuite / ERP', 'CSI', 'Data & Platform', 'Shared']),
     /* OKRs: objectives (level 1) with key results (level 2). */
@@ -143,6 +147,8 @@ function slug(value) {
 /* ------------------------------------------------------------------ */
 
 function sampleData() {
+  /* The sample splits its names across the two owner lists. */
+  const PRODUCT_OWNER_NAMES = ['Nicolas', 'Sarah', 'Priya', 'Commercial'];
   const now = new Date().toISOString();
   const stamp = { createdAt: now, createdBy: 'Sample data', updatedAt: now, updatedBy: 'Sample data' };
 
@@ -444,8 +450,10 @@ function sampleData() {
   function programme(id, name, shortName, description, businessOutcome, owner, status, priority, colour) {
     return Object.assign({
       id: id, name: name, shortName: shortName, description: description,
-      businessOutcome: businessOutcome, owner: owner, status: status,
-      priority: priority, colour: colour, notes: ''
+      businessOutcome: businessOutcome,
+      productOwners: productOwnersFor(owner), deliveryOwners: deliveryOwnersFor(owner),
+      owner: productOwnersFor(owner)[0] || owner,
+      status: status, priority: priority, colour: colour, notes: ''
     }, stamp);
   }
 
@@ -464,11 +472,9 @@ function sampleData() {
       targetDate: endDate,
       status: status,
       priority: priority,
-      businessOwner: owner,
-      productOwner: owner,
-      technicalOwner: '',
-      deliveryOwner: '',
-      owner: owner,
+      productOwners: productOwnersFor(owner),
+      deliveryOwners: deliveryOwnersFor(owner),
+      owner: productOwnersFor(owner)[0] || owner,
       description: '',
       businessOutcome: '',
       problemStatement: '',
@@ -488,6 +494,14 @@ function sampleData() {
       estimates: est({ po: 0, dev: 0, int: 0, data: 0 }, '', { po: 0, dev: 0, int: 0, data: 0 }, '', ''),
       backlogId: ''
     }, extra, stamp);
+  }
+
+  function productOwnersFor(owner) {
+    return PRODUCT_OWNER_NAMES.indexOf(owner) >= 0 ? [owner] : ['Nicolas'];
+  }
+
+  function deliveryOwnersFor(owner) {
+    return PRODUCT_OWNER_NAMES.indexOf(owner) >= 0 ? ['Jake'] : [owner];
   }
 
   function est(fastDays, fastRisk, standardDays, standardRisk, standardNotes) {

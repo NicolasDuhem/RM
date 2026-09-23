@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T05:33:18.955Z",
+  "updatedAt": "2026-09-23T06:11:46.586Z",
   "records": [
     {
       "id": "PRG-0001",
@@ -8,14 +8,20 @@
       "shortName": "Customer & Accreditation",
       "description": "Single dealer master with an accreditation model that drives what a dealer may buy.",
       "businessOutcome": "Dealers see only the products they are accredited to order, based on one trusted source.",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
       "owner": "Nicolas",
       "status": "build",
       "priority": "critical",
       "colour": "#2563eb",
       "notes": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -24,14 +30,20 @@
       "shortName": "Product Data & PIM",
       "description": "Define the product master, translation source and the route to a PIM.",
       "businessOutcome": "One definition of product data feeding every channel and every entity.",
+      "productOwners": [
+        "Sarah"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
       "owner": "Sarah",
       "status": "definition",
       "priority": "high",
       "colour": "#7c3aed",
       "notes": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -40,14 +52,20 @@
       "shortName": "BPP Global Rollout",
       "description": "Extend the B2B platform to further entities with the ERP integration behind it.",
       "businessOutcome": "Every entity orders through one platform with orders and stock flowing into finance.",
-      "owner": "Jake",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
+      "owner": "Nicolas",
       "status": "build",
       "priority": "critical",
       "colour": "#ea580c",
       "notes": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     },
     {
@@ -56,14 +74,20 @@
       "shortName": "Stock Trust",
       "description": "Make published availability trustworthy across entities and channels.",
       "businessOutcome": "Dealers trust what the platform says is available and when it ships.",
+      "productOwners": [
+        "Priya"
+      ],
+      "deliveryOwners": [
+        "Jake"
+      ],
       "owner": "Priya",
       "status": "discovery",
       "priority": "high",
       "colour": "#0891b2",
       "notes": "",
-      "createdAt": "2026-09-23T05:33:18.953Z",
+      "createdAt": "2026-09-23T06:11:46.584Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T05:33:18.953Z",
+      "updatedAt": "2026-09-23T06:11:46.584Z",
       "updatedBy": "Sample data"
     }
   ]

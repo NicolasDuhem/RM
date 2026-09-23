@@ -64,7 +64,10 @@ One object, with one or both of these lists. Anything else is ignored.
       "shortName": "Dealer Self-Service",
       "description": "Let dealers do for themselves what they ring us about today.",
       "businessOutcome": "Fewer support calls and faster answers for dealers.",
-      "owner": "Nicolas",
+      "productOwners": [
+        "Nicolas"
+      ],
+      "deliveryOwners": [],
       "status": "discovery",
       "priority": "high",
       "notes": ""
@@ -89,11 +92,8 @@ One object, with one or both of these lists. Anything else is ignored.
       "startDate": "2027-03-01",
       "endDate": "2027-05-31",
       "targetDate": "",
-      "owner": "",
-      "businessOwner": "",
-      "productOwner": "",
-      "technicalOwner": "",
-      "deliveryOwner": "",
+      "productOwners": [],
+      "deliveryOwners": [],
       "description": "Show the live status of an order in the dealer portal.",
       "businessOutcome": "Dealers stop ringing to ask where an order is.",
       "problemStatement": "Order status is only visible to the internal team.",
@@ -169,7 +169,8 @@ One object, with one or both of these lists. Anything else is ignored.
 | `shortName` | no | A shorter label for the roadmap bar. |
 | `description` | no | What the programme covers. |
 | `businessOutcome` | no | The outcome in business terms, not technical terms. |
-| `owner` | no | A name from the people list, or `""`. |
+| `productOwners` | no | A list of names from the product owner list, or `[]`. |
+| `deliveryOwners` | no | A list of names from the delivery owner list, or `[]`. |
 | `status` | no | A status id from the list below. |
 | `priority` | no | A priority id from the list below. |
 | `notes` | no | Anything else worth recording. |
@@ -189,8 +190,8 @@ One object, with one or both of these lists. Anything else is ignored.
 | `currentPhase` | no | A milestone type id - where the work is now. |
 | `startDate`, `endDate` | no | ISO dates. These place the bar on the roadmap. |
 | `targetDate` | no | A date it is aimed at, if different from the end date. |
-| `owner` | no | A name from the people list, or `""`. |
-| `businessOwner`, `productOwner`, `technicalOwner`, `deliveryOwner` | no | Names from the people list, or `""`. |
+| `productOwners` | no | A list of names from the product owner list. Several are allowed. `[]` if unsure. |
+| `deliveryOwners` | no | A list of names from the delivery owner list. Several are allowed. `[]` if unsure. |
 | `description` | no | What the change is. |
 | `businessOutcome` | no | Why it is worth doing. |
 | `problemStatement` | no | The problem it solves today. |
@@ -209,7 +210,7 @@ One object, with one or both of these lists. Anything else is ignored.
 | `name` | yes | The task, in a few words. |
 | `description` | no | What doing it involves. |
 | `status` | no | A status id from the list below. |
-| `owner` | no | A name from the people list, or `""`. |
+| `owner` | no | One name, from either owner list, or `""`. |
 | `stream` | no | A resource stream id, only when it differs from the system change. |
 | `okrIds` | no | A list of OKR ids this task moves. Objective or key result ids, from the list below. |
 | `links` | no | External links: `[{ "label": "Jira ABC-1", "url": "https://..." }]`. As many as you like. |
@@ -359,18 +360,26 @@ Use the **id** (the left-hand column), never the label.
 
 ### People
 
-Owner fields hold the **name**, written exactly as below. Anybody not on
-this list must be left as `""`.
+Owner fields hold the **name**, written exactly as below. A programme or
+system change may name several of each. Anybody not on these lists must be
+left out.
+
+**Product owners**
 
 * Nicolas
 * Sarah
-* Jake
 * Priya
 * Commercial
-* Finance
-* Operations
+
+**Delivery owners**
+
+* Jake
 * Data team
 * Integration team
+* Operations
+* Finance
+
+A task has a single `owner`, who may come from either list.
 
 ### OKRs
 
@@ -396,7 +405,7 @@ either level. Prefer the key result when one fits.
 * Only `programmes` and `roadmapItems` in the file, nothing else.
 * No `id` fields anywhere - the tool assigns them.
 * Every id used for a status, priority, system, type, stream or OKR appears in the lists above.
-* Every owner is a name from the people list, or `""`.
+* Every owner is a name from the matching list; `[]` or `""` when nobody fits.
 * Every task has `days`, even when the owner and stream are empty.
 * Every system change points at a programme by name.
 * Dates are `YYYY-MM-DD`, and no end date is before its start date.

@@ -350,8 +350,12 @@
 
   const LISTS = [
     {
-      name: 'people', label: 'People', colour: false,
-      description: 'Everybody who can be picked as an owner. Owner fields store the name, so a name entered before this list existed still shows on its record.'
+      name: 'productOwners', label: 'Product owners', colour: false,
+      description: 'The names offered in the Product owner picker. Owner fields store the name itself, so a name entered before this list existed still shows on its record.'
+    },
+    {
+      name: 'deliveryOwners', label: 'Delivery owners', colour: false,
+      description: 'The names offered in the Delivery owner picker. A programme or system change can have several of each.'
     },
     { name: 'systems', label: 'Systems', colour: false },
     { name: 'itemTypes', label: 'Types', colour: false },
@@ -480,6 +484,7 @@
     });
 
     root.appendChild(okrEditor(draft));
+    root.appendChild(keyDateEditor(draft));
     root.appendChild(quarterEditor(draft));
 
     root.appendChild(el('div', 'sticky-actions', [
@@ -740,6 +745,57 @@
 
   function slugify(value) {
     return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || 'item';
+  }
+
+  /** Dates the business plans around, drawn down the whole roadmap. */
+  function keyDateEditor(draft) {
+    if (!Array.isArray(draft.keyDates)) draft.keyDates = [];
+    const body = el('div', 'panel-body');
+    const section = el('section', 'panel', [
+      el('h2', 'panel-title', 'Key dates'),
+      el('p', 'panel-description',
+        'A label and a date. Each one is drawn down the roadmap like the TODAY line, and can be shown or hidden from the Roadmap toolbar.'),
+      body
+    ]);
+    draw();
+    return section;
+
+    function draw() {
+      RM.clear(body);
+      if (!draft.keyDates.length) {
+        body.appendChild(el('p', 'muted', 'No key dates yet.'));
+      } else {
+        body.appendChild(el('div', 'table-wrap', el('table', 'table', [
+          el('thead', null, el('tr', null, [
+            el('th', null, 'Key date'), el('th', null, 'Date'), el('th', null, 'Colour'), el('th', null, '')
+          ])),
+          el('tbody', null, draft.keyDates.map(function (entry, index) {
+            const name = el('input', { class: 'input input-compact', type: 'text', value: entry.name || '' });
+            name.addEventListener('change', function () { entry.name = name.value.trim(); });
+
+            const date = el('input', { class: 'input input-compact', type: 'date', value: entry.date || '' });
+            date.addEventListener('change', function () { entry.date = date.value; });
+
+            const colour = el('input', { class: 'input input-colour', type: 'color', value: entry.colour || '#b45309' });
+            colour.addEventListener('change', function () { entry.colour = colour.value; });
+
+            return el('tr', null, [
+              el('td', null, name),
+              el('td', null, date),
+              el('td', null, colour),
+              el('td', 'row-actions', el('button', {
+                class: 'icon-button icon-danger', type: 'button', title: 'Remove',
+                onclick: function () { draft.keyDates.splice(index, 1); draw(); }
+              }, '\u00d7'))
+            ]);
+          }))
+        ])));
+      }
+      body.appendChild(RM.button('+ Add key date', function () {
+        draft.keyDates.push({ id: '', name: '', date: '', colour: '#b45309' });
+        draw();
+      }));
+    }
   }
 
   function quarterEditor(draft) {

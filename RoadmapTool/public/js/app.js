@@ -24,6 +24,7 @@ window.RM = (function () {
       roadmapMode: 'detailed',
       timescale: 'month',
       showMilestones: true,
+      showKeyDates: true,
       collapsed: {},
       expandedItems: {},
       filters: emptyFilters(),
@@ -33,7 +34,7 @@ window.RM = (function () {
 
   function emptyFilters() {
     return {
-      programme: '', system: '', status: '', owner: '', productOwner: '',
+      programme: '', system: '', status: '', productOwner: '', deliveryOwner: '',
       priority: '', type: '', phase: '', stream: '', okr: '', dateFrom: '', dateTo: '', search: ''
     };
   }
@@ -70,6 +71,7 @@ window.RM = (function () {
         roadmapMode: ui.roadmapMode,
         timescale: ui.timescale,
         showMilestones: ui.showMilestones,
+        showKeyDates: ui.showKeyDates,
         collapsed: ui.collapsed,
         expandedItems: ui.expandedItems,
         filters: ui.filters,
@@ -318,6 +320,12 @@ window.RM = (function () {
     format: function (value) {
       return String(Math.round((Number(value) || 0) * 10) / 10);
     }
+  };
+
+  /** Dates the business plans around, drawn across the whole roadmap. */
+  RM.keyDates = function () {
+    const list = RM.settings().keyDates;
+    return (Array.isArray(list) ? list : []).filter(function (entry) { return entry && entry.date; });
   };
 
   /** The stream a task belongs to: its own, or the one on its system change. */
@@ -745,7 +753,8 @@ window.RM = (function () {
       inputs[field.name] = { input: input, field: field };
 
       const control = el('div', {
-        class: 'field' + (field.full ? ' field-full' : '') + (field.type === 'checkbox' ? ' field-inline' : '')
+        class: 'field' + (field.full ? ' field-full' : '') + (field.type === 'checkbox' ? ' field-inline' : '') +
+          (field.className ? ' ' + field.className : '')
       }, [
         el('label', { class: 'field-label', for: id }, field.label + (field.required ? ' *' : '')),
         input,
@@ -979,48 +988,72 @@ window.RM = (function () {
   };
 
   /**
-   * Options for every "who owns this" dropdown. The list is maintained in
-   * Settings; names already stored but no longer in the list are kept so
-   * nothing silently disappears from an old record.
+   * Options for the owner pickers. The two lists are maintained in Settings;
+   * names already stored but no longer listed are kept so nothing silently
+   * disappears from an old record.
    */
-  RM.peopleOptions = function () {
+  function ownerOptions(listNames, alsoInUse) {
     const names = [];
     const seen = new Set();
-    activeOptions('people').forEach(function (person) {
-      if (seen.has(person.name)) return;
-      seen.add(person.name);
-      names.push(person.name);
+    listNames.forEach(function (listName) {
+      activeOptions(listName).forEach(function (person) {
+        if (seen.has(person.name)) return;
+        seen.add(person.name);
+        names.push(person.name);
+      });
     });
-    RM.ownersInUse().forEach(function (name) {
-      if (seen.has(name)) return;
+    (alsoInUse || []).forEach(function (name) {
+      if (!name || seen.has(name)) return;
       seen.add(name);
       names.push(name);
     });
     return names.map(function (name) { return { value: name, label: name }; });
+  }
+
+  RM.productOwnerOptions = function () {
+    return ownerOptions(['productOwners'], collectOwners('productOwners'));
   };
+
+  RM.deliveryOwnerOptions = function () {
+    return ownerOptions(['deliveryOwners'], collectOwners('deliveryOwners'));
+  };
+
+  /** Anybody from either list - used where one name is enough. */
+  RM.peopleOptions = function () {
+    return ownerOptions(['productOwners', 'deliveryOwners'], RM.ownersInUse());
+  };
+
+  function collectOwners(field) {
+    const names = new Set();
+    RM.records('programmes').forEach(function (record) {
+      (record[field] || []).forEach(function (name) { names.add(name); });
+    });
+    RM.records('roadmapItems').forEach(function (record) {
+      (record[field] || []).forEach(function (name) { names.add(name); });
+    });
+    return Array.from(names);
+  }
 
   RM.ownersInUse = function () {
     const owners = new Set();
     RM.records('roadmapItems').forEach(function (item) {
-      ['owner', 'businessOwner', 'productOwner', 'technicalOwner', 'deliveryOwner'].forEach(function (field) {
-        if (item[field]) owners.add(item[field]);
-      });
+      (item.productOwners || []).forEach(function (name) { owners.add(name); });
+      (item.deliveryOwners || []).forEach(function (name) { owners.add(name); });
       (item.tasks || []).forEach(function (task) { if (task.owner) owners.add(task.owner); });
       (item.risks || []).forEach(function (risk) { if (risk.owner) owners.add(risk.owner); });
       (item.gates || []).forEach(function (gate) { if (gate.owner) owners.add(gate.owner); });
     });
-    RM.records('programmes').forEach(function (p) { if (p.owner) owners.add(p.owner); });
+    RM.records('programmes').forEach(function (p) {
+      (p.productOwners || []).forEach(function (name) { owners.add(name); });
+      (p.deliveryOwners || []).forEach(function (name) { owners.add(name); });
+    });
     RM.records('backlog').forEach(function (b) { if (b.owner) owners.add(b.owner); });
     RM.records('dependencies').forEach(function (d) { if (d.owner) owners.add(d.owner); });
     return Array.from(owners).sort(function (a, b) { return a.localeCompare(b); });
   };
 
   RM.productOwnersInUse = function () {
-    const owners = new Set();
-    RM.records('roadmapItems').forEach(function (item) {
-      if (item.productOwner) owners.add(item.productOwner);
-    });
-    return Array.from(owners).sort(function (a, b) { return a.localeCompare(b); });
+    return collectOwners('productOwners').sort(function (a, b) { return a.localeCompare(b); });
   };
 
   RM.nextChildId = function (prefix, existing) {
@@ -1061,11 +1094,8 @@ window.RM = (function () {
     if (filters.stream && !itemUsesStream(item, filters.stream)) return false;
     if (filters.okr && !itemUsesOkr(item, filters.okr)) return false;
     if (filters.phase && item.currentPhase !== filters.phase) return false;
-    if (filters.productOwner && item.productOwner !== filters.productOwner) return false;
-    if (filters.owner) {
-      const owners = [item.owner, item.businessOwner, item.productOwner, item.technicalOwner, item.deliveryOwner];
-      if (owners.indexOf(filters.owner) < 0) return false;
-    }
+    if (filters.productOwner && (item.productOwners || []).indexOf(filters.productOwner) < 0) return false;
+    if (filters.deliveryOwner && (item.deliveryOwners || []).indexOf(filters.deliveryOwner) < 0) return false;
     if (filters.dateFrom && item.endDate && item.endDate < filters.dateFrom) return false;
     if (filters.dateTo && item.startDate && item.startDate > filters.dateTo) return false;
     if (filters.search && !matchesSearch(item, filters.search)) return false;
@@ -1086,8 +1116,8 @@ window.RM = (function () {
     const programme = RM.programmeById(item.programmeId);
     const haystack = [
       item.title, item.shortTitle, item.description, item.businessOutcome,
-      item.notes, item.comments, item.owner, item.businessOwner, item.productOwner,
-      item.technicalOwner, item.deliveryOwner, item.subArea,
+      item.notes, item.comments, item.subArea,
+      (item.productOwners || []).join(' '), (item.deliveryOwners || []).join(' '),
       RM.options.names('systems', item.systemAreas).join(' '),
       RM.options.name('resourceStreams', item.stream),
       (item.tasks || []).map(function (task) { return task.name + ' ' + (task.owner || '') + ' ' + (task.description || ''); }).join(' '),
@@ -1199,6 +1229,7 @@ window.RM = (function () {
     if (prefs.roadmapMode) ui.roadmapMode = prefs.roadmapMode;
     if (prefs.timescale) ui.timescale = prefs.timescale;
     if (prefs.showMilestones !== undefined) ui.showMilestones = prefs.showMilestones;
+    if (prefs.showKeyDates !== undefined) ui.showKeyDates = prefs.showKeyDates;
 
     document.getElementById('editor-name').textContent = ui.editorName || 'Set your name';
     document.getElementById('editor-button').addEventListener('click', function () {
@@ -1223,6 +1254,7 @@ window.RM = (function () {
       if (!prefs.roadmapMode && settings.defaultRoadmapMode) ui.roadmapMode = settings.defaultRoadmapMode;
       if (!prefs.timescale && settings.defaultTimescale) ui.timescale = settings.defaultTimescale;
       if (prefs.showMilestones === undefined) ui.showMilestones = settings.showMilestones !== false;
+      if (prefs.showKeyDates === undefined) ui.showKeyDates = settings.showKeyDates !== false;
 
       RM.setView(prefs.view || settings.defaultView || 'roadmap');
       if (!ui.editorName) RM.askEditorName(false);

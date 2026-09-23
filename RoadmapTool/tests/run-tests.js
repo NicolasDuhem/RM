@@ -140,6 +140,7 @@ async function run() {
     record: {
       title: 'Item A', programmeId: 'PRG-0001', startDate: '2026-09-01', endDate: '2026-10-31', status: 'build',
       systemAreas: ['bpp', 'netsuite'], types: ['integration', 'rollout'], stream: 'b2b',
+      productOwners: ['Nicolas', 'Sarah', 'Nicolas'], deliveryOwners: ['Jake'],
       tasks: [
         { id: 'TSK-0001', name: 'Build it', status: 'build', owner: 'Jake', okrIds: ['kr-new-entities'],
           links: [{ label: 'Jira INT-1', url: 'https://jira.example.com/browse/INT-1' }],
@@ -149,6 +150,8 @@ async function run() {
   });
   equal('a valid roadmap item is created', itemA.body.record.id, 'RM-0001');
   equal('a system change can hold several systems', itemA.body.record.systemAreas.length, 2);
+  equal('it can hold several product owners', itemA.body.record.productOwners.length, 2);
+  equal('and several delivery owners', itemA.body.record.deliveryOwners.length, 1);
   equal('a system change can hold several types', itemA.body.record.types.length, 2);
   equal('the item carries its resource stream', itemA.body.record.stream, 'b2b');
   equal('tasks are stored under the item', itemA.body.record.tasks.length, 1);
@@ -161,6 +164,7 @@ async function run() {
     record: {
       title: 'Written by an older version', programmeId: 'PRG-0001',
       systemArea: 'salesforce', type: 'system-change', scope: 'old scope', outOfScope: 'old',
+      productOwner: 'Sarah', businessOwner: 'Nicolas', technicalOwner: 'Data team', deliveryOwner: 'Jake',
       tickets: [{ id: 'TKT-9', title: 'Old ticket', externalReference: 'JIRA-9' }]
     }
   });
@@ -168,6 +172,13 @@ async function run() {
   equal('an older single type is folded into the list', legacy.body.record.types[0], 'system-change');
   check('the removed scope fields are dropped', legacy.body.record.scope === undefined && legacy.body.record.outOfScope === undefined);
   equal('older tickets become tasks', legacy.body.record.tasks[0].name, 'Old ticket');
+  check('older single owners fold into the product owner list',
+    legacy.body.record.productOwners.join(',') === 'Sarah,Nicolas', legacy.body.record.productOwners.join(','));
+  check('and into the delivery owner list',
+    legacy.body.record.deliveryOwners.join(',') === 'Jake,Data team', legacy.body.record.deliveryOwners.join(','));
+  check('the single owner fields are gone',
+    legacy.body.record.businessOwner === undefined && legacy.body.record.technicalOwner === undefined);
+  equal('a convenience owner is still derived', legacy.body.record.owner, 'Sarah');
   equal('an older external reference becomes a link', legacy.body.record.tasks[0].links[0].url, 'JIRA-9');
   await api('POST', '/api/dataset/roadmapItems/delete', {
     revision: legacy.body.revision, id: legacy.body.record.id, editor: 'Tester',
@@ -389,6 +400,8 @@ async function run() {
 
   const itemCsv = String((await api('GET', '/api/export/csv/roadmapItems')).body);
   check('the roadmap CSV writes several systems in one column', itemCsv.indexOf('BPP; NetSuite') > 0);
+  check('the roadmap CSV has one column per owner list',
+    itemCsv.indexOf('Product Owners,Delivery Owners') > 0);
   check('the roadmap CSV no longer has a scope column', itemCsv.indexOf('Out Of Scope') < 0);
 
   /* -------------------------------------------------- */
@@ -429,7 +442,9 @@ async function run() {
   const guideText = String(guideResponse.body);
   check('the guide lists the live statuses', guideText.indexOf('| `discovery` | Discovery |') > 0);
   check('the guide lists the live streams', guideText.indexOf('Resource streams') > 0);
-  check('the guide lists the people', guideText.indexOf('* Nicolas') > 0);
+  check('the guide lists both owner lists',
+    guideText.indexOf('**Product owners**') > 0 && guideText.indexOf('**Delivery owners**') > 0);
+  check('the guide names the people', guideText.indexOf('* Nicolas') > 0);
   check('the guide lists the OKRs with both levels',
     guideText.indexOf('`okr-dealer`') > 0 && guideText.indexOf('`kr-order-errors`') > 0);
   check('the guide tells the reader not to invent master data',
@@ -530,6 +545,27 @@ async function run() {
   check('OKRs keep their two levels',
     settingsOk.body.settings.okrs.length > 0 && settingsOk.body.settings.okrs[0].children.length > 0);
   check('resource streams are part of settings', settingsOk.body.settings.resourceStreams.length > 0);
+  check('the two owner lists are part of settings',
+    settingsOk.body.settings.productOwners.length > 0 && settingsOk.body.settings.deliveryOwners.length > 0);
+
+  const keyDates = await api('POST', '/api/settings/save', {
+    revision: (await revisions()).settings, editor: 'Tester', password: 'Brompton2026',
+    settings: {
+      keyDates: [
+        { name: 'Board meeting', date: '2027-02-10' },
+        { name: 'Peak freeze', date: '2026-11-15', colour: '#b45309' }
+      ]
+    }
+  });
+  equal('key dates can be saved', keyDates.status, 200);
+  equal('they are kept in date order', keyDates.body.settings.keyDates[0].name, 'Peak freeze');
+  check('each one gets an id', /^kd-/.test(keyDates.body.settings.keyDates[0].id));
+
+  const badKeyDate = await api('POST', '/api/settings/save', {
+    revision: (await revisions()).settings, editor: 'Tester', password: 'Brompton2026',
+    settings: { keyDates: [{ name: 'No date at all', date: '' }] }
+  });
+  equal('a key date without a date is rejected', badKeyDate.status, 422);
 
   /* -------------------------------------------------- */
   process.stdout.write('\nSample data\n');
