@@ -126,7 +126,8 @@ function validateRoadmapItem(input, context) {
   record.stream = trimmed(record.stream);
   record.status = trimmed(record.status);
   record.priority = trimmed(record.priority);
-  record.currentPhase = trimmed(record.currentPhase);
+  // The phase said the same thing as the status, so it is no longer kept.
+  delete record.currentPhase;
 
   record.startDate = optionalDate(errors, record.startDate, 'startDate', 'Start date');
   record.endDate = optionalDate(errors, record.endDate, 'endDate', 'End date');

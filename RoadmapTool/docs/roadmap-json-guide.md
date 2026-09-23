@@ -1,48 +1,72 @@
 # Roadmap JSON guide
 
-_Snapshot of the guide the tool generates. The lists below are the ones the application ships with - download a fresh copy from **Data -> Download the JSON guide** so they match your own settings._
+_Snapshot of the guide the tool generates. Download a fresh copy from **Data -> Download the JSON guide**, together with the master data file it refers to._
 
-This file explains the JSON the roadmap tool accepts so you can draft new
-work outside the tool - including with a chat assistant - and import it.
+This guide explains the JSON the roadmap tool accepts, so programmes,
+system changes and tasks can be drafted outside it - including with a chat
+assistant - and then imported.
+
+**It contains no lists of values on purpose.** Every status, system,
+stream, resource type, owner and OKR must be read from the master data
+file that comes with this guide.
+
+## What to share with the assistant
+
+Two files:
+
+1. **This guide.**
+2. **The master data file** - in the roadmap tool, *Data -> Export master data*.
+   One JSON file holding the settings (every list the roadmap uses), the
+   programmes that already exist, and the system changes already on the
+   roadmap so nothing is drafted twice.
+
+If you would rather send the raw files from the `data` folder instead:
+
+| File | Needed? | Why |
+|---|---|---|
+| `settings.json` | **Required** | Holds every allowed value. |
+| `programmes.json` | Recommended | So work is attached to a programme that already exists instead of a duplicate. |
+| `roadmap-items.json` | Optional | Only if you want the assistant to see what is already planned. It is the largest file. |
+| `backlog.json`, `dependencies.json`, `resource-scenarios.json`, `audit.json` | No | Nothing here is drafted from them. |
 
 ## How to use it
 
-1. Give this whole file to your assistant (ChatGPT, Claude, whatever you use).
+1. Give the assistant this guide and the master data file.
 2. Describe the programme, the system changes and the tasks you want, in plain words.
-3. Ask for **one JSON object, following this guide exactly**.
+3. Ask for **one JSON object, following this guide, using only ids found in the master data**.
 4. Save the answer as a `.json` file.
-5. In the roadmap tool: **Data -> Import -> Add to the roadmap**, choose the file.
+5. In the roadmap tool: **Data -> Add to the roadmap**, and choose the file.
 
 The import is additive: it adds what is in the file and leaves everything
-already on the roadmap alone. Ids are assigned by the tool, so you never
-write one yourself. If a programme in your file has the same name as one
-that already exists, your system changes are added under the existing
-programme instead of creating a second one with the same name.
+already on the roadmap alone. Ids are assigned by the tool, so none are
+ever written by hand. A programme whose name already exists is reused
+rather than duplicated, so several people can draft into the same one.
 
 ## The rules
 
 **Create only these three things: programmes, system changes and tasks.**
 
-* A **programme** is a business outcome or larger initiative.
+* A **programme** is a business outcome or a larger initiative.
 * A **system change** is a deliverable underneath a programme, and it carries the dates.
 * A **task** is the work underneath a system change, and it carries the effort.
 
-**Never invent master data.** Statuses, priorities, systems, types, resource
-streams, resource types, people and OKRs are maintained inside the tool by
-an administrator. Use only the ids listed further down, exactly as written.
-Do not add, rename or "improve" them, and do not output any other dataset
-(no settings, no dependencies, no backlog, no resource scenarios).
+**Never invent master data.** Statuses, priorities, systems, types,
+resource streams, resource types, milestone types, people and OKRs are
+maintained inside the tool by an administrator. Read them from the master
+data file and use them exactly as written. Do not add to them, do not
+rename them, do not "improve" them, and never output a settings block, a
+dependency, a backlog item or a resource scenario.
 
-**If nothing in a list fits, leave the field empty (`""`), never guess.**
-That applies especially to people and to the resource stream: if you cannot
-match a real name or a real stream, leave it empty and somebody will pick it
-in the tool afterwards.
+**If nothing in a list fits, leave the field empty** - `""` for a single
+value, `[]` for a list - and say so in the notes. Never guess, and never
+invent a person: if no name in the file is right, leave the owners empty
+and somebody will pick them in the tool afterwards.
 
-**Effort is always filled in.** Even when the stream or the owner is left
-empty, every task must carry the days it needs under `days`, using the
-resource type ids below. Use whole or half days. Use `0` where a discipline
-is not needed. Effort belongs on tasks only: the system change and the
-programme add theirs up automatically.
+**Effort is always filled in.** Even when the stream and the owners are
+left empty, every task carries the days it needs under `days`, keyed by
+the resource type ids from the master data. Whole or half days. `0` where
+a discipline is not needed. Effort belongs on tasks only - the system
+change and the programme add theirs up automatically.
 
 **Dates**
 
@@ -50,11 +74,53 @@ programme add theirs up automatically.
 * Only system changes have dates. Tasks run with the system change above them.
 * `endDate` must be the same as, or after, `startDate`.
 * A programme never has dates: the tool works them out from its system changes.
-* If the timing is genuinely unknown, use `""` for both dates and say so in the notes.
+* If the timing is genuinely unknown, use `""` for both and say so in the notes.
 
-## The shape
+## Where each value comes from
+
+Read the master data file and use what is in it. Nothing else is valid.
+
+| Field you are filling in | Read from | Write the |
+|---|---|---|
+| `status` | `settings.statuses` | `id` |
+| `priority` | `settings.priorities` | `id` |
+| `systemAreas` | `settings.systems` | `id` of each |
+| `types` | `settings.itemTypes` | `id` of each |
+| `stream` | `settings.resourceStreams` | `id` |
+| keys inside `days` | `settings.resourceTypes` | `id` as the key |
+| `milestones[].name` | `settings.milestoneTypes` | `name` |
+| `okrIds` | `settings.okrs` and their `children` | `id` of either level |
+| `productOwners` | `settings.productOwners` | `name` of each |
+| `deliveryOwners` | `settings.deliveryOwners` | `name` of each |
+| task `owner` | `settings.productOwners` or `settings.deliveryOwners` | one `name` |
+| `programme` | `programmes` in the master data, or a programme you are creating in the same file | `name` |
+
+Every list in the settings has the same shape, and only the entries with
+`"active": true` may be used:
+
+```json
+"statuses": [
+  { "id": "some-id", "name": "Some label", "colour": "#2563eb", "active": true }
+]
+```
+
+OKRs have two levels - an objective with its key results underneath - and
+a task may point at either:
+
+```json
+"okrs": [
+  {
+    "id": "objective-id", "name": "The objective", "active": true,
+    "children": [ { "id": "key-result-id", "name": "The key result", "active": true } ]
+  }
+]
+```
+
+## The shape to produce
 
 One object, with one or both of these lists. Anything else is ignored.
+Every `<...>` below is a placeholder: replace it with a value read from the
+master data, or with an empty string or list when nothing fits.
 
 ```json
 {
@@ -65,11 +131,11 @@ One object, with one or both of these lists. Anything else is ignored.
       "description": "Let dealers do for themselves what they ring us about today.",
       "businessOutcome": "Fewer support calls and faster answers for dealers.",
       "productOwners": [
-        "Nicolas"
+        "<name from settings.productOwners, or leave the list empty>"
       ],
       "deliveryOwners": [],
-      "status": "discovery",
-      "priority": "high",
+      "status": "<id from settings.statuses>",
+      "priority": "<id from settings.priorities>",
       "notes": ""
     }
   ],
@@ -79,16 +145,15 @@ One object, with one or both of these lists. Anything else is ignored.
       "title": "Self-service order status",
       "shortTitle": "Order status",
       "systemAreas": [
-        "bpp"
+        "<id from settings.systems>"
       ],
       "types": [
-        "system-change"
+        "<id from settings.itemTypes>"
       ],
       "subArea": "Dealer portal",
-      "stream": "b2b",
-      "status": "definition",
-      "priority": "medium",
-      "currentPhase": "",
+      "stream": "<id from settings.resourceStreams>",
+      "status": "<id from settings.statuses>",
+      "priority": "<id from settings.priorities>",
       "startDate": "2027-03-01",
       "endDate": "2027-05-31",
       "targetDate": "",
@@ -107,10 +172,10 @@ One object, with one or both of these lists. Anything else is ignored.
       "notes": "",
       "milestones": [
         {
-          "name": "Discovery",
+          "name": "<name from settings.milestoneTypes>",
           "date": "2027-04-15",
           "status": "",
-          "notes": ""
+          "notes": "What this milestone means."
         }
       ],
       "risks": [],
@@ -119,11 +184,11 @@ One object, with one or both of these lists. Anything else is ignored.
         {
           "name": "Design the status screen",
           "description": "Screen and states, agreed with two dealers.",
-          "status": "ready",
-          "owner": "",
+          "status": "<id from settings.statuses>",
+          "owner": "<one name from either owner list, or empty>",
           "stream": "",
           "okrIds": [
-            "kr-order-errors"
+            "<id from settings.okrs or their children>"
           ],
           "links": [
             {
@@ -132,26 +197,8 @@ One object, with one or both of these lists. Anything else is ignored.
             }
           ],
           "days": {
-            "po": 2,
-            "dev": 8,
-            "int": 0,
-            "data": 0
-          },
-          "notes": ""
-        },
-        {
-          "name": "Publish order status to the portal",
-          "description": "Feed status changes through to the dealer portal.",
-          "status": "idea",
-          "owner": "",
-          "stream": "",
-          "okrIds": [],
-          "links": [],
-          "days": {
-            "po": 1,
-            "dev": 5,
-            "int": 6,
-            "data": 1
+            "<id from settings.resourceTypes>": 2,
+            "<another resource type id>": 8
           },
           "notes": ""
         }
@@ -169,39 +216,34 @@ One object, with one or both of these lists. Anything else is ignored.
 | `shortName` | no | A shorter label for the roadmap bar. |
 | `description` | no | What the programme covers. |
 | `businessOutcome` | no | The outcome in business terms, not technical terms. |
-| `productOwners` | no | A list of names from the product owner list, or `[]`. |
-| `deliveryOwners` | no | A list of names from the delivery owner list, or `[]`. |
-| `status` | no | A status id from the list below. |
-| `priority` | no | A priority id from the list below. |
-| `notes` | no | Anything else worth recording. |
+| `productOwners` | no | Names from `settings.productOwners`. Several allowed, `[]` if unsure. |
+| `deliveryOwners` | no | Names from `settings.deliveryOwners`. Several allowed, `[]` if unsure. |
+| `status`, `priority` | no | Ids from the matching settings list. |
+| `notes` | no | Anything else worth recording, including what you were unsure about. |
 
 ### System change fields
 
 | Field | Required | What it is |
 |---|---|---|
-| `programme` | yes | The name of the programme it belongs to (from your file, or one already on the roadmap). |
+| `programme` | yes | The **name** of the programme it belongs to - one from the master data, or one you are creating in the same file. |
 | `title` | yes | What is changing. |
 | `shortTitle` | no | A shorter label for the roadmap bar. |
-| `systemAreas` | no | A list of system ids. A change can touch several. |
-| `types` | no | A list of type ids. A change can be of several types. |
+| `systemAreas` | no | Ids from `settings.systems`. A change can touch several. |
+| `types` | no | Ids from `settings.itemTypes`. A change can be of several types. |
 | `subArea` | no | Free text, for example "Accreditation" or "Order to cash". |
-| `stream` | no | A resource stream id: the team whose capacity this consumes. `""` if unsure. |
-| `status`, `priority` | no | Ids from the lists below. |
-| `currentPhase` | no | A milestone type id - where the work is now. |
+| `stream` | no | An id from `settings.resourceStreams`: whose capacity this consumes. |
+| `status`, `priority` | no | Ids from the matching settings list. |
 | `startDate`, `endDate` | no | ISO dates. These place the bar on the roadmap. |
-| `targetDate` | no | A date it is aimed at, if different from the end date. |
-| `productOwners` | no | A list of names from the product owner list. Several are allowed. `[]` if unsure. |
-| `deliveryOwners` | no | A list of names from the delivery owner list. Several are allowed. `[]` if unsure. |
+| `targetDate` | no | A date it is aimed at, when that differs from the end date. |
+| `productOwners`, `deliveryOwners` | no | Names from the matching settings list, or `[]`. |
 | `description` | no | What the change is. |
 | `businessOutcome` | no | Why it is worth doing. |
 | `problemStatement` | no | The problem it solves today. |
 | `systemDependencies`, `businessDependencies`, `dataDependencies` | no | Dependencies described in words. |
-| `recommendedApproach`, `tradeOffs`, `pocNotes` | no | How to do it, and what it costs to do it that way. |
+| `recommendedApproach`, `tradeOffs`, `pocNotes` | no | How to do it, and what doing it that way costs. |
 | `comments`, `notes` | no | Anything else. |
-| `milestones` | no | See below. |
-| `risks` | no | See below. |
-| `gates` | no | Decisions or gates. See below. |
-| `tasks` | yes in practice | The work. See below - this is where effort lives. |
+| `milestones`, `risks`, `gates` | no | See below. |
+| `tasks` | yes in practice | The work, and where effort lives. See below. |
 
 ### Task fields
 
@@ -209,12 +251,12 @@ One object, with one or both of these lists. Anything else is ignored.
 |---|---|---|
 | `name` | yes | The task, in a few words. |
 | `description` | no | What doing it involves. |
-| `status` | no | A status id from the list below. |
-| `owner` | no | One name, from either owner list, or `""`. |
-| `stream` | no | A resource stream id, only when it differs from the system change. |
-| `okrIds` | no | A list of OKR ids this task moves. Objective or key result ids, from the list below. |
-| `links` | no | External links: `[{ "label": "Jira ABC-1", "url": "https://..." }]`. As many as you like. |
-| `days` | yes | Effort per resource type: `po` (Product Owner), `dev` (Development), `int` (Integration), `data` (Data Engineering). |
+| `status` | no | An id from `settings.statuses`. |
+| `owner` | no | One name from either owner list, or `""`. |
+| `stream` | no | An id from `settings.resourceStreams`, only when it differs from the system change. |
+| `okrIds` | no | Ids from `settings.okrs` or their `children`. Prefer a key result when one fits. |
+| `links` | no | External links: `[{ "label": "Jira ABC-1", "url": "https://..." }]`. As many as needed. |
+| `days` | yes | Effort in days, keyed by the ids in `settings.resourceTypes`. |
 | `notes` | no | Anything else. |
 
 ### Milestones, risks and gates
@@ -223,10 +265,10 @@ One object, with one or both of these lists. Anything else is ignored.
 {
   "milestones": [
     {
-      "name": "Discovery",
+      "name": "<name from settings.milestoneTypes>",
       "date": "2027-02-15",
-      "status": "idea",
-      "notes": ""
+      "status": "<id from settings.statuses>",
+      "notes": "Shown when somebody hovers the milestone on the roadmap."
     }
   ],
   "risks": [
@@ -255,166 +297,28 @@ One object, with one or both of these lists. Anything else is ignored.
 }
 ```
 
-`impact` and `probability` are `High`, `Medium` or `Low`. Risk `status` is
-`open`, `mitigated` or `closed`. Gate `status` is `open`, `decided` or `closed`.
-A milestone `name` must be one of the milestone types listed below.
+`impact` and `probability` are `High`, `Medium` or `Low`. A risk `status`
+is `open`, `mitigated` or `closed`; a gate `status` is `open`, `decided` or
+`closed`. These four are the only fixed vocabularies in the whole format -
+everything else comes from the master data.
 
-## The values you may use
-
-Use the **id** (the left-hand column), never the label.
-
-### Statuses
-
-| Id | Label |
-|---|---|
-| `idea` | Idea |
-| `discovery` | Discovery |
-| `definition` | Definition |
-| `ready` | Ready |
-| `build` | Build |
-| `integration` | Integration |
-| `uat` | UAT |
-| `pilot` | Pilot |
-| `rollout` | Rollout |
-| `live` | Live |
-| `on-hold` | On Hold |
-| `blocked` | Blocked |
-| `cancelled` | Cancelled |
-
-### Priorities
-
-| Id | Label |
-|---|---|
-| `critical` | Critical |
-| `high` | High |
-| `medium` | Medium |
-| `low` | Low |
-
-### Systems
-
-| Id | Label |
-|---|---|
-| `bpp` | BPP |
-| `salesforce` | Salesforce |
-| `csi` | CSI |
-| `netsuite` | NetSuite |
-| `bigcommerce` | BigCommerce |
-| `infor-cpq` | Infor CPQ |
-| `pim` | PIM |
-| `databricks` | Databricks |
-| `integration` | Integration |
-| `mobile-app` | Mobile App |
-| `operations` | Operations |
-| `finance` | Finance |
-| `data` | Data |
-| `other` | Other |
-
-### Types
-
-| Id | Label |
-|---|---|
-| `system-change` | System Change |
-| `process-change` | Process Change |
-| `data-change` | Data Change |
-| `integration` | Integration |
-| `rollout` | Rollout |
-| `discovery` | Discovery |
-| `platform` | Platform |
-| `other` | Other |
-
-### Milestone types
-
-| Id | Label |
-|---|---|
-| `discovery` | Discovery |
-| `definition` | Definition |
-| `poc` | POC |
-| `mvp` | MVP |
-| `build` | Build |
-| `integration` | Integration |
-| `uat` | UAT |
-| `pilot` | Pilot |
-| `rollout` | Rollout |
-| `live` | Live |
-
-### Resource streams (the team whose capacity is used)
-
-| Id | Label |
-|---|---|
-| `b2b` | B2B |
-| `d2c` | D2C |
-| `netsuite-erp` | NetSuite / ERP |
-| `csi` | CSI |
-| `data-platform` | Data & Platform |
-| `shared` | Shared |
-
-### Resource types (the keys inside `days`)
-
-| Id | Label |
-|---|---|
-| `po` | Product Owner |
-| `dev` | Development |
-| `int` | Integration |
-| `data` | Data Engineering |
-
-
-### People
-
-Owner fields hold the **name**, written exactly as below. A programme or
-system change may name several of each. Anybody not on these lists must be
-left out.
-
-**Product owners**
-
-* Nicolas
-* Sarah
-* Priya
-* Commercial
-
-**Delivery owners**
-
-* Jake
-* Data team
-* Integration team
-* Operations
-* Finance
-
-A task has a single `owner`, who may come from either list.
-
-### OKRs
-
-Two levels: objectives, each with its own key results. A task may point at
-either level. Prefer the key result when one fits.
-
-* **Improve the dealer experience** - `okr-dealer`
-  * Reduce dealer ordering errors - `kr-order-errors`
-  * Increase dealer self-service - `kr-self-service`
-  * Trusted availability and lead times - `kr-availability`
-* **Scale globally on one platform** - `okr-global`
-  * Launch new entities on the platform - `kr-new-entities`
-  * One order and stock flow per entity - `kr-entity-flows`
-* **Trusted master data** - `okr-data`
-  * One product master - `kr-product-master`
-  * One customer and dealer master - `kr-customer-master`
-* **Operational efficiency** - `okr-efficiency`
-  * Remove manual rekeying - `kr-no-rekeying`
-  * Reduce time to publish product data - `kr-time-to-publish`
-
-## Checklist before you hand the file over
+## Checklist before handing the file over
 
 * Only `programmes` and `roadmapItems` in the file, nothing else.
-* No `id` fields anywhere - the tool assigns them.
-* Every id used for a status, priority, system, type, stream or OKR appears in the lists above.
-* Every owner is a name from the matching list; `[]` or `""` when nobody fits.
-* Every task has `days`, even when the owner and stream are empty.
-* Every system change points at a programme by name.
+* No `id` field anywhere - the tool assigns them.
+* Every status, priority, system, type, stream, milestone name, OKR and person appears in the master data file, spelled exactly as it is there.
+* Nothing was invented to fill a gap; gaps are empty and explained in the notes.
+* Every task has `days`, keyed by the resource type ids.
+* Every system change names a programme.
 * Dates are `YYYY-MM-DD`, and no end date is before its start date.
-* It is valid JSON: no trailing commas, no comments, double quotes throughout.
+* It is valid JSON: double quotes throughout, no trailing commas, no comments.
 
 ## A worked prompt
 
-> Here is our roadmap JSON guide. Using only the ids it lists, draft a
-> programme called "Dealer Self-Service" with three system changes and
-> four to six tasks each. The work runs from March to September 2027.
-> Estimate the days for each task. Where you cannot match a person or a
-> stream, leave it empty. Answer with the JSON only.
+> Here is our roadmap JSON guide and our master data file. Using only the
+> ids and names found in the master data, draft a programme called
+> "Dealer Self-Service" with three system changes and four to six tasks
+> each, running from March to September 2027. Estimate the days for each
+> task against our resource types. Where nothing in the master data fits -
+> a person, a stream, a system - leave the field empty and note why.
+> Answer with the JSON only.

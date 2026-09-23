@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T06:11:46.589Z",
+  "updatedAt": "2026-09-23T08:08:33.801Z",
   "records": [
     {
       "id": "BLG-0001",
@@ -8,8 +8,8 @@
       "systemArea": "bpp",
       "subAreaDepartment": "Operations",
       "change": "Quick Ship proposition",
-      "type": "discovery",
-      "currentStatus": "idea",
+      "type": "other",
+      "currentStatus": "not-started",
       "dependencyPrerequisite": "Needs cross-entity stock visibility",
       "otherSystemsImpacted": "NetSuite, BigCommerce",
       "processesImpacted": "Order management",
@@ -22,9 +22,9 @@
       "days": {},
       "promoted": false,
       "roadmapItemId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -34,7 +34,7 @@
       "subAreaDepartment": "Product",
       "change": "BigCommerce metafield changes",
       "type": "system-change",
-      "currentStatus": "idea",
+      "currentStatus": "not-started",
       "dependencyPrerequisite": "Product data definition",
       "otherSystemsImpacted": "PIM",
       "processesImpacted": "Content publishing",
@@ -52,19 +52,19 @@
       },
       "promoted": false,
       "roadmapItemId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
       "id": "BLG-0003",
       "programme": "PRG-0001",
-      "systemArea": "csi",
+      "systemArea": "ebike-app",
       "subAreaDepartment": "Service",
       "change": "Dealer self-service accreditation view",
       "type": "system-change",
-      "currentStatus": "idea",
+      "currentStatus": "not-started",
       "dependencyPrerequisite": "Accreditation matrix",
       "otherSystemsImpacted": "Salesforce",
       "processesImpacted": "Dealer support",
@@ -73,7 +73,7 @@
       "comment": "",
       "startDate": "2027-03-01",
       "endDate": "2027-05-31",
-      "stream": "csi",
+      "stream": "ebike-app",
       "days": {
         "po": 3,
         "dev": 10,
@@ -82,9 +82,9 @@
       },
       "promoted": false,
       "roadmapItemId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -94,7 +94,7 @@
       "subAreaDepartment": "Finance",
       "change": "Automated dealer credit checks",
       "type": "process-change",
-      "currentStatus": "idea",
+      "currentStatus": "not-started",
       "dependencyPrerequisite": "NetSuite customer master",
       "otherSystemsImpacted": "NetSuite, Salesforce",
       "processesImpacted": "Credit control",
@@ -107,9 +107,9 @@
       "days": {},
       "promoted": false,
       "roadmapItemId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     }
   ]

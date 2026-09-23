@@ -53,9 +53,13 @@
       ]),
 
       panel('Drafting outside the tool',
-        'The JSON guide describes the format, and lists the statuses, systems, streams, people and OKRs this roadmap actually uses. Hand it to a colleague or to a chat assistant to draft programmes, system changes and tasks, then add the result with "Add to the roadmap".', [
-          RM.button('Download the JSON guide', function () { download('/api/export/guide'); }, 'primary'),
-          el('p', 'muted small', 'It is generated from your current settings, so download it again after changing a list.')
+        'Hand these two files to a colleague or to a chat assistant, describe what you want, and add the JSON it produces with "Add to the roadmap".', [
+          el('div', 'button-row', [
+            RM.button('1. Download the JSON guide', function () { download('/api/export/guide'); }, 'primary'),
+            RM.button('2. Export master data', function () { download('/api/export/master-data'); }, 'primary')
+          ]),
+          el('p', 'muted small',
+            'The guide explains the format and holds no values of its own. The master data file holds every list this roadmap uses, the programmes that already exist and the system changes already planned - so nothing is invented and nothing is drafted twice. Export it again after changing anything in Settings.')
         ]),
 
       panel('Sample data', 'The sample roadmap shows how the tool is meant to be used. Removing it does not remove the application.', [

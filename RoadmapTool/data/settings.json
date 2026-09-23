@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T06:11:46.581Z",
+  "updatedAt": "2026-09-23T08:08:33.793Z",
   "settings": {
     "appName": "Roadmap Tool",
     "organisation": "",
@@ -13,6 +13,7 @@
     "roadmapEnd": "",
     "showMilestones": true,
     "showTodayLine": true,
+    "showKeyDates": true,
     "backupsToKeep": 50,
     "auditEntriesToKeep": 5000,
     "workingDaysPerMonth": 21,
@@ -92,37 +93,22 @@
     "itemTypes": [
       {
         "id": "system-change",
-        "name": "System Change",
+        "name": "System change",
         "active": true
       },
       {
         "id": "process-change",
-        "name": "Process Change",
+        "name": "Process change",
         "active": true
       },
       {
         "id": "data-change",
-        "name": "Data Change",
+        "name": "Data change",
         "active": true
       },
       {
         "id": "integration",
         "name": "Integration",
-        "active": true
-      },
-      {
-        "id": "rollout",
-        "name": "Rollout",
-        "active": true
-      },
-      {
-        "id": "discovery",
-        "name": "Discovery",
-        "active": true
-      },
-      {
-        "id": "platform",
-        "name": "Platform",
         "active": true
       },
       {
@@ -133,81 +119,33 @@
     ],
     "statuses": [
       {
-        "id": "idea",
-        "name": "Idea",
+        "id": "not-started",
+        "name": "Not started",
         "colour": "#94a3b8",
         "active": true
       },
       {
-        "id": "discovery",
-        "name": "Discovery",
-        "colour": "#7c8fb5",
-        "active": true
-      },
-      {
-        "id": "definition",
-        "name": "Definition",
-        "colour": "#6366f1",
-        "active": true
-      },
-      {
-        "id": "ready",
-        "name": "Ready",
-        "colour": "#0ea5e9",
-        "active": true
-      },
-      {
-        "id": "build",
-        "name": "Build",
+        "id": "in-progress",
+        "name": "In progress",
         "colour": "#2563eb",
         "active": true
       },
       {
-        "id": "integration",
-        "name": "Integration",
-        "colour": "#0891b2",
-        "active": true
-      },
-      {
-        "id": "uat",
-        "name": "UAT",
+        "id": "in-uat",
+        "name": "In UAT",
         "colour": "#7c3aed",
         "active": true
       },
       {
-        "id": "pilot",
-        "name": "Pilot",
-        "colour": "#c026d3",
-        "active": true
-      },
-      {
-        "id": "rollout",
-        "name": "Rollout",
-        "colour": "#ea580c",
-        "active": true
-      },
-      {
-        "id": "live",
-        "name": "Live",
+        "id": "released",
+        "name": "Released",
         "colour": "#16a34a",
-        "active": true
-      },
-      {
-        "id": "on-hold",
-        "name": "On Hold",
-        "colour": "#a16207",
         "active": true
       },
       {
         "id": "blocked",
         "name": "Blocked",
         "colour": "#dc2626",
-        "active": true
-      },
-      {
-        "id": "cancelled",
-        "name": "Cancelled",
-        "colour": "#6b7280",
         "active": true
       }
     ],
@@ -239,33 +177,13 @@
     ],
     "milestoneTypes": [
       {
-        "id": "discovery",
-        "name": "Discovery",
-        "active": true
-      },
-      {
-        "id": "definition",
-        "name": "Definition",
-        "active": true
-      },
-      {
         "id": "poc",
         "name": "POC",
         "active": true
       },
       {
-        "id": "mvp",
-        "name": "MVP",
-        "active": true
-      },
-      {
-        "id": "build",
-        "name": "Build",
-        "active": true
-      },
-      {
-        "id": "integration",
-        "name": "Integration",
+        "id": "integration-mapped",
+        "name": "Integration mapped",
         "active": true
       },
       {
@@ -274,18 +192,8 @@
         "active": true
       },
       {
-        "id": "pilot",
-        "name": "Pilot",
-        "active": true
-      },
-      {
-        "id": "rollout",
-        "name": "Rollout",
-        "active": true
-      },
-      {
-        "id": "live",
-        "name": "Live",
+        "id": "go-live",
+        "name": "Go live",
         "active": true
       }
     ],
@@ -329,7 +237,7 @@
     "resourceTypes": [
       {
         "id": "po",
-        "name": "Product Owner",
+        "name": "Product owner",
         "active": true
       },
       {
@@ -344,7 +252,12 @@
       },
       {
         "id": "data",
-        "name": "Data Engineering",
+        "name": "Data engineering",
+        "active": true
+      },
+      {
+        "id": "master-data",
+        "name": "Master data",
         "active": true
       }
     ],
@@ -423,23 +336,23 @@
         "active": true
       },
       {
-        "id": "netsuite-erp",
-        "name": "NetSuite / ERP",
+        "id": "erp-hq",
+        "name": "ERP HQ",
         "active": true
       },
       {
-        "id": "csi",
-        "name": "CSI",
+        "id": "erp-subsidiaries",
+        "name": "ERP subsidiaries",
         "active": true
       },
       {
-        "id": "data-platform",
-        "name": "Data & Platform",
+        "id": "ebike-backend",
+        "name": "Ebike backend",
         "active": true
       },
       {
-        "id": "shared",
-        "name": "Shared",
+        "id": "ebike-app",
+        "name": "Ebike app",
         "active": true
       }
     ],

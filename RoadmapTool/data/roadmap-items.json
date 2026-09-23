@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T06:11:46.586Z",
+  "updatedAt": "2026-09-23T08:08:33.799Z",
   "records": [
     {
       "id": "RM-0001",
@@ -20,7 +20,7 @@
       "startDate": "2026-09-01",
       "endDate": "2026-10-31",
       "targetDate": "2026-10-31",
-      "status": "build",
+      "status": "in-progress",
       "priority": "critical",
       "productOwners": [
         "Nicolas"
@@ -40,28 +40,27 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "build",
       "milestones": [
         {
           "id": "MS-0001",
-          "name": "Definition",
+          "name": "POC",
           "date": "2026-09-12",
-          "status": "live",
-          "notes": ""
+          "status": "released",
+          "notes": "Proved the effective-dating model against three real dealers."
         },
         {
           "id": "MS-0002",
-          "name": "Build",
+          "name": "Integration mapped",
           "date": "2026-10-10",
-          "status": "build",
-          "notes": ""
+          "status": "in-progress",
+          "notes": "Field-by-field mapping agreed with the platform team. Blocked on the tax fields."
         },
         {
           "id": "MS-0003",
-          "name": "Live",
+          "name": "Go live",
           "date": "2026-10-31",
-          "status": "idea",
-          "notes": ""
+          "status": "not-started",
+          "notes": "Needs the dealer confirmation round to be finished first."
         }
       ],
       "risks": [
@@ -81,7 +80,7 @@
           "id": "TSK-0001",
           "roadmapItemId": "RM-0001",
           "name": "Create the accreditation object",
-          "status": "build",
+          "status": "in-progress",
           "owner": "Nicolas",
           "stream": "",
           "okrIds": [
@@ -107,9 +106,9 @@
           "id": "TSK-0002",
           "roadmapItemId": "RM-0001",
           "name": "Migrate the accreditation spreadsheet",
-          "status": "ready",
+          "status": "not-started",
           "owner": "Data team",
-          "stream": "data-platform",
+          "stream": "erp-subsidiaries",
           "okrIds": [
             "kr-customer-master"
           ],
@@ -132,7 +131,7 @@
           "id": "TSK-0003",
           "roadmapItemId": "RM-0001",
           "name": "Publish accreditation to the platform",
-          "status": "definition",
+          "status": "in-progress",
           "owner": "Integration team",
           "stream": "b2b",
           "okrIds": [
@@ -173,9 +172,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -194,7 +193,7 @@
       "startDate": "2026-10-15",
       "endDate": "2026-12-15",
       "targetDate": "2026-12-15",
-      "status": "definition",
+      "status": "in-progress",
       "priority": "high",
       "productOwners": [
         "Nicolas"
@@ -214,20 +213,19 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "definition",
       "milestones": [
         {
           "id": "MS-0004",
-          "name": "Definition",
+          "name": "POC",
           "date": "2026-10-30",
-          "status": "definition",
+          "status": "in-progress",
           "notes": ""
         },
         {
           "id": "MS-0005",
-          "name": "MVP",
+          "name": "UAT",
           "date": "2026-12-01",
-          "status": "idea",
+          "status": "not-started",
           "notes": ""
         }
       ],
@@ -237,7 +235,7 @@
           "id": "TSK-0004",
           "roadmapItemId": "RM-0002",
           "name": "Matrix data model",
-          "status": "definition",
+          "status": "in-progress",
           "owner": "Jake",
           "stream": "b2b",
           "okrIds": [
@@ -257,7 +255,7 @@
           "id": "TSK-0005",
           "roadmapItemId": "RM-0002",
           "name": "Matrix maintenance screen",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Jake",
           "stream": "b2b",
           "okrIds": [],
@@ -301,9 +299,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -323,7 +321,7 @@
       "startDate": "2026-12-01",
       "endDate": "2027-02-15",
       "targetDate": "2027-02-15",
-      "status": "ready",
+      "status": "not-started",
       "priority": "high",
       "productOwners": [
         "Nicolas"
@@ -343,20 +341,19 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "ready",
       "milestones": [
         {
           "id": "MS-0006",
-          "name": "Build",
+          "name": "Integration mapped",
           "date": "2027-01-15",
-          "status": "idea",
+          "status": "not-started",
           "notes": ""
         },
         {
           "id": "MS-0007",
-          "name": "Live",
+          "name": "Go live",
           "date": "2027-02-15",
-          "status": "idea",
+          "status": "not-started",
           "notes": ""
         }
       ],
@@ -366,7 +363,7 @@
           "id": "TSK-0006",
           "roadmapItemId": "RM-0003",
           "name": "Catalogue filtering",
-          "status": "ready",
+          "status": "not-started",
           "owner": "Jake",
           "stream": "b2b",
           "okrIds": [
@@ -386,7 +383,7 @@
           "id": "TSK-0007",
           "roadmapItemId": "RM-0003",
           "name": "Basket and order validation",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Jake",
           "stream": "b2b",
           "okrIds": [],
@@ -437,9 +434,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -453,13 +450,13 @@
       ],
       "subArea": "Master data",
       "types": [
-        "discovery"
+        "other"
       ],
-      "stream": "data-platform",
+      "stream": "erp-subsidiaries",
       "startDate": "2026-09-15",
       "endDate": "2026-11-30",
       "targetDate": "2026-11-30",
-      "status": "discovery",
+      "status": "in-progress",
       "priority": "high",
       "productOwners": [
         "Sarah"
@@ -479,20 +476,19 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "discovery",
       "milestones": [
         {
           "id": "MS-0008",
-          "name": "Discovery",
+          "name": "POC",
           "date": "2026-10-15",
-          "status": "discovery",
+          "status": "in-progress",
           "notes": ""
         },
         {
           "id": "MS-0009",
-          "name": "Definition",
+          "name": "POC",
           "date": "2026-11-30",
-          "status": "idea",
+          "status": "not-started",
           "notes": ""
         }
       ],
@@ -502,9 +498,9 @@
           "id": "TSK-0008",
           "roadmapItemId": "RM-0004",
           "name": "Attribute catalogue workshops",
-          "status": "discovery",
+          "status": "in-progress",
           "owner": "Sarah",
-          "stream": "data-platform",
+          "stream": "erp-subsidiaries",
           "okrIds": [
             "kr-product-master"
           ],
@@ -522,9 +518,9 @@
           "id": "TSK-0009",
           "roadmapItemId": "RM-0004",
           "name": "Profile the current data",
-          "status": "discovery",
+          "status": "in-progress",
           "owner": "Data team",
-          "stream": "data-platform",
+          "stream": "erp-subsidiaries",
           "okrIds": [
             "kr-product-master"
           ],
@@ -563,9 +559,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -585,7 +581,7 @@
       "startDate": "2026-11-01",
       "endDate": "2027-01-31",
       "targetDate": "2027-01-31",
-      "status": "idea",
+      "status": "not-started",
       "priority": "medium",
       "productOwners": [
         "Sarah"
@@ -605,7 +601,6 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "idea",
       "milestones": [],
       "risks": [],
       "tasks": [
@@ -613,7 +608,7 @@
           "id": "TSK-0010",
           "roadmapItemId": "RM-0005",
           "name": "Translation source decision",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Sarah",
           "stream": "d2c",
           "okrIds": [
@@ -633,7 +628,7 @@
           "id": "TSK-0011",
           "roadmapItemId": "RM-0005",
           "name": "Publish translations to commerce",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Sarah",
           "stream": "d2c",
           "okrIds": [
@@ -674,9 +669,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -689,13 +684,13 @@
       ],
       "subArea": "Tooling",
       "types": [
-        "discovery"
+        "other"
       ],
-      "stream": "data-platform",
+      "stream": "erp-subsidiaries",
       "startDate": "2027-01-01",
       "endDate": "2027-03-31",
       "targetDate": "2027-03-31",
-      "status": "idea",
+      "status": "not-started",
       "priority": "medium",
       "productOwners": [
         "Sarah"
@@ -715,7 +710,6 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "idea",
       "milestones": [],
       "risks": [],
       "tasks": [
@@ -723,9 +717,9 @@
           "id": "TSK-0012",
           "roadmapItemId": "RM-0006",
           "name": "Requirements and vendor long list",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Sarah",
-          "stream": "data-platform",
+          "stream": "erp-subsidiaries",
           "okrIds": [
             "kr-product-master"
           ],
@@ -764,9 +758,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -782,11 +776,11 @@
       "types": [
         "integration"
       ],
-      "stream": "netsuite-erp",
+      "stream": "erp-hq",
       "startDate": "2026-09-01",
       "endDate": "2026-11-30",
       "targetDate": "2026-11-30",
-      "status": "build",
+      "status": "in-progress",
       "priority": "critical",
       "productOwners": [
         "Nicolas"
@@ -806,28 +800,27 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "build",
       "milestones": [
         {
           "id": "MS-0010",
-          "name": "Build",
+          "name": "Integration mapped",
           "date": "2026-10-15",
-          "status": "build",
-          "notes": ""
+          "status": "in-progress",
+          "notes": "Order payload agreed; tax treatment per entity still open."
         },
         {
           "id": "MS-0011",
           "name": "UAT",
           "date": "2026-11-10",
-          "status": "idea",
-          "notes": ""
+          "status": "not-started",
+          "notes": "Two weeks with finance and three pilot dealers."
         },
         {
           "id": "MS-0012",
-          "name": "Live",
+          "name": "Go live",
           "date": "2026-11-30",
-          "status": "idea",
-          "notes": ""
+          "status": "not-started",
+          "notes": "Cut over on a Friday evening, with the old process available for a week."
         }
       ],
       "risks": [
@@ -847,9 +840,9 @@
           "id": "TSK-0013",
           "roadmapItemId": "RM-0007",
           "name": "Order payload mapping",
-          "status": "build",
+          "status": "in-progress",
           "owner": "Integration team",
-          "stream": "netsuite-erp",
+          "stream": "erp-hq",
           "okrIds": [
             "kr-no-rekeying"
           ],
@@ -872,9 +865,9 @@
           "id": "TSK-0014",
           "roadmapItemId": "RM-0007",
           "name": "Error handling and retry",
-          "status": "ready",
+          "status": "not-started",
           "owner": "Integration team",
-          "stream": "netsuite-erp",
+          "stream": "erp-hq",
           "okrIds": [
             "kr-no-rekeying"
           ],
@@ -892,9 +885,9 @@
           "id": "TSK-0015",
           "roadmapItemId": "RM-0007",
           "name": "Tax per entity",
-          "status": "definition",
+          "status": "in-progress",
           "owner": "Finance",
-          "stream": "netsuite-erp",
+          "stream": "erp-hq",
           "okrIds": [],
           "links": [],
           "days": {
@@ -931,9 +924,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -949,11 +942,11 @@
       "types": [
         "integration"
       ],
-      "stream": "netsuite-erp",
+      "stream": "erp-hq",
       "startDate": "2026-10-15",
       "endDate": "2026-12-15",
       "targetDate": "2026-12-15",
-      "status": "definition",
+      "status": "in-progress",
       "priority": "high",
       "productOwners": [
         "Nicolas"
@@ -973,20 +966,19 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "definition",
       "milestones": [
         {
           "id": "MS-0013",
-          "name": "Build",
+          "name": "Integration mapped",
           "date": "2026-11-20",
-          "status": "idea",
+          "status": "not-started",
           "notes": ""
         },
         {
           "id": "MS-0014",
-          "name": "Live",
+          "name": "Go live",
           "date": "2026-12-15",
-          "status": "idea",
+          "status": "not-started",
           "notes": ""
         }
       ],
@@ -996,9 +988,9 @@
           "id": "TSK-0016",
           "roadmapItemId": "RM-0008",
           "name": "Inventory feed",
-          "status": "definition",
+          "status": "in-progress",
           "owner": "Integration team",
-          "stream": "netsuite-erp",
+          "stream": "erp-hq",
           "okrIds": [
             "kr-availability"
           ],
@@ -1016,7 +1008,7 @@
           "id": "TSK-0017",
           "roadmapItemId": "RM-0008",
           "name": "Availability calculation",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Jake",
           "stream": "b2b",
           "okrIds": [
@@ -1057,9 +1049,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -1073,13 +1065,13 @@
       ],
       "subArea": "Rollout",
       "types": [
-        "rollout"
+        "other"
       ],
       "stream": "b2b",
       "startDate": "2026-12-01",
       "endDate": "2027-02-28",
       "targetDate": "2027-02-28",
-      "status": "ready",
+      "status": "not-started",
       "priority": "high",
       "productOwners": [
         "Nicolas"
@@ -1099,20 +1091,19 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "ready",
       "milestones": [
         {
           "id": "MS-0015",
-          "name": "Pilot",
+          "name": "UAT",
           "date": "2027-01-20",
-          "status": "idea",
+          "status": "not-started",
           "notes": ""
         },
         {
           "id": "MS-0016",
-          "name": "Rollout",
+          "name": "Go live",
           "date": "2027-02-28",
-          "status": "idea",
+          "status": "not-started",
           "notes": ""
         }
       ],
@@ -1122,7 +1113,7 @@
           "id": "TSK-0018",
           "roadmapItemId": "RM-0009",
           "name": "Entity configuration",
-          "status": "ready",
+          "status": "not-started",
           "owner": "Jake",
           "stream": "b2b",
           "okrIds": [
@@ -1142,9 +1133,9 @@
           "id": "TSK-0019",
           "roadmapItemId": "RM-0009",
           "name": "Dealer onboarding",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Operations",
-          "stream": "shared",
+          "stream": "erp-hq",
           "okrIds": [
             "kr-new-entities"
           ],
@@ -1183,9 +1174,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -1198,13 +1189,13 @@
       ],
       "subArea": "Rollout",
       "types": [
-        "rollout"
+        "other"
       ],
       "stream": "b2b",
       "startDate": "2027-03-01",
       "endDate": "2027-05-31",
       "targetDate": "2027-05-31",
-      "status": "idea",
+      "status": "not-started",
       "priority": "medium",
       "productOwners": [
         "Nicolas"
@@ -1224,7 +1215,6 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "idea",
       "milestones": [],
       "risks": [],
       "tasks": [
@@ -1232,7 +1222,7 @@
           "id": "TSK-0020",
           "roadmapItemId": "RM-0010",
           "name": "Entity configuration",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Jake",
           "stream": "b2b",
           "okrIds": [
@@ -1273,9 +1263,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -1288,13 +1278,13 @@
       ],
       "subArea": "Rollout",
       "types": [
-        "rollout"
+        "other"
       ],
       "stream": "b2b",
       "startDate": "2027-05-01",
       "endDate": "2027-08-31",
       "targetDate": "2027-08-31",
-      "status": "idea",
+      "status": "not-started",
       "priority": "medium",
       "productOwners": [
         "Nicolas"
@@ -1314,7 +1304,6 @@
       "pocNotes": "",
       "comments": "",
       "notes": "",
-      "currentPhase": "idea",
       "milestones": [],
       "risks": [],
       "tasks": [
@@ -1322,7 +1311,7 @@
           "id": "TSK-0021",
           "roadmapItemId": "RM-0011",
           "name": "Entity configuration and translation",
-          "status": "idea",
+          "status": "not-started",
           "owner": "Jake",
           "stream": "b2b",
           "okrIds": [
@@ -1363,9 +1352,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     },
     {
@@ -1379,13 +1368,13 @@
       ],
       "subArea": "Availability",
       "types": [
-        "discovery"
+        "other"
       ],
       "stream": "b2b",
       "startDate": "",
       "endDate": "",
       "targetDate": "",
-      "status": "idea",
+      "status": "not-started",
       "priority": "medium",
       "productOwners": [
         "Priya"
@@ -1405,7 +1394,6 @@
       "pocNotes": "",
       "comments": "",
       "notes": "To be defined - deliberately undated until discovery completes.",
-      "currentPhase": "idea",
       "milestones": [],
       "risks": [],
       "tasks": [],
@@ -1433,9 +1421,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-23T06:11:46.584Z",
+      "createdAt": "2026-09-23T08:08:33.796Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-23T06:11:46.584Z",
+      "updatedAt": "2026-09-23T08:08:33.796Z",
       "updatedBy": "Sample data"
     }
   ]

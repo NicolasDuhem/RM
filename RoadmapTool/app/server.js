@@ -557,6 +557,48 @@ function fileStamp() {
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes());
 }
 
+/**
+ * Everything somebody needs to draft roadmap JSON outside the tool, and
+ * nothing else: the settings (every list), the programmes that exist, and a
+ * slim view of the system changes already planned. Read-only - importing this
+ * file back is not a thing.
+ */
+function buildMasterData() {
+  const programmes = store.records('programmes');
+  return {
+    exportedAt: new Date().toISOString(),
+    application: store.records('settings').appName || 'Roadmap Tool',
+    purpose: 'Master data for drafting roadmap JSON. Use only the values in this file - never invent statuses, systems, streams, resource types, people or OKRs.',
+    settings: store.records('settings'),
+    programmes: programmes.map(function (programme) {
+      return {
+        id: programme.id,
+        name: programme.name,
+        status: programme.status,
+        priority: programme.priority,
+        productOwners: programme.productOwners || [],
+        deliveryOwners: programme.deliveryOwners || [],
+        businessOutcome: programme.businessOutcome
+      };
+    }),
+    roadmapItems: store.records('roadmapItems').map(function (item) {
+      const programme = programmes.find(function (p) { return p.id === item.programmeId; });
+      return {
+        id: item.id,
+        programme: programme ? programme.name : '',
+        title: item.title,
+        systemAreas: item.systemAreas || [],
+        types: item.types || [],
+        stream: item.stream || '',
+        status: item.status,
+        startDate: item.startDate,
+        endDate: item.endDate,
+        taskCount: (item.tasks || []).length
+      };
+    })
+  };
+}
+
 function buildBundle() {
   const bundle = {
     exportedAt: new Date().toISOString(),
@@ -836,7 +878,6 @@ function unknownValueWarnings(programmes, items) {
     note('statuses', item.status, 'Status');
     note('priorities', item.priority, 'Priority');
     note('resourceStreams', item.stream, 'Resource stream');
-    note('milestoneTypes', item.currentPhase, 'Phase');
     (item.systemAreas || []).forEach(function (id) { note('systems', id, 'System'); });
     (item.types || []).forEach(function (id) { note('itemTypes', id, 'Type'); });
     (item.tasks || []).forEach(function (task) {
@@ -1125,6 +1166,19 @@ async function handleApi(req, res, pathname, query) {
       });
       return sendJson(res, 200, restored);
     }
+  }
+
+  if (method === 'GET' && head === 'export' && segments[1] === 'master-data') {
+    const text = JSON.stringify(buildMasterData(), null, 2);
+    const fileName = 'RoadmapMasterData_' + fileStamp() + '.json';
+    writeExport(fileName, text);
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="' + fileName + '"',
+      'X-Roadmap-Export-File': fileName,
+      'Content-Length': Buffer.byteLength(text)
+    });
+    return res.end(text);
   }
 
   if (method === 'GET' && head === 'export' && segments[1] === 'guide') {

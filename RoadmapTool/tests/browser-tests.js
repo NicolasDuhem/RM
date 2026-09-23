@@ -100,7 +100,7 @@ function check(name, ok, detail) {
   await ribbon(page, 'Types').locator('.ms-control').click();
   await page.waitForTimeout(250);
   await page.locator('.ms-panel .ms-option', { hasText: 'Integration' }).click();
-  await page.locator('.ms-panel .ms-option', { hasText: 'Rollout' }).click();
+  await page.locator('.ms-panel .ms-option', { hasText: 'Data change' }).click();
   await page.locator('.modal-title').first().click();
   await page.waitForTimeout(200);
   await ribbon(page, 'Stream').locator('select').selectOption({ label: 'B2B' });
@@ -125,7 +125,7 @@ function check(name, ok, detail) {
   await taskModal.locator('.field', { hasText: 'Task name' }).locator('input').fill('Build the integration');
   await taskModal.locator('.field').filter({ has: page.locator('.field-label', { hasText: /^Owner$/ }) })
     .locator('select').selectOption({ label: 'Jake' });
-  await taskModal.locator('.field').filter({ hasText: /^Product Owner$/ }).locator('input').fill('3');
+  await taskModal.locator('.field').filter({ hasText: /^Product owner$/ }).locator('input').fill('3');
   await taskModal.locator('.field').filter({ hasText: /^Development$/ }).locator('input').fill('12');
   await taskModal.locator('.field').filter({ hasText: /^Integration$/ }).locator('input').fill('8');
   await taskModal.locator('.ms-control').click();
@@ -174,6 +174,18 @@ function check(name, ok, detail) {
   await page.waitForTimeout(900);
   check('the stale edit was not written', await page.locator('.row-title', { hasText: 'Stale edit' }).count() === 0);
 
+  console.log('\nMilestones');
+  const milestone = page.locator('.milestone').first();
+  await milestone.hover();
+  await page.waitForTimeout(400);
+  const milestoneTip = await page.locator('.tooltip').innerText();
+  check('hovering a milestone shows its note',
+    /Proved the effective-dating model/.test(milestoneTip), milestoneTip.replace(/\n/g, ' | '));
+  check('the tooltip names the milestone and its date',
+    /POC|Integration mapped|UAT|Go live/.test(milestoneTip) && /20\d\d/.test(milestoneTip), milestoneTip.replace(/\n/g, ' | '));
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(200);
+
   console.log('\nKey dates');
   check('key dates are drawn on the timeline', await page.locator('.key-date-flag').count() >= 2);
   check('and a line runs down the chart', await page.locator('.key-date-line').count() > 0);
@@ -192,7 +204,8 @@ function check(name, ok, detail) {
   check('search filters the roadmap', await page.locator('.chip').count() >= 1);
   await page.locator('.chip-clear').click();
   await page.waitForTimeout(500);
-  const streamSelect = page.locator('.filter-row select').nth(6);
+  const streamSelect = page.locator('.filter-row select')
+    .filter({ has: page.locator('option', { hasText: 'Stream: All' }) });
   await streamSelect.selectOption({ label: 'B2B' });
   await page.waitForTimeout(500);
   check('a stream filter can be applied', await page.locator('.chip', { hasText: 'Stream' }).count() === 1);
@@ -389,6 +402,18 @@ function check(name, ok, detail) {
       .some(c => /Backlog: Automated dealer credit checks/.test(c.getAttribute('title')));
   }));
 
+  console.log('\nNo phase');
+  await page.locator('.nav-link', { hasText: 'Roadmap' }).click();
+  await page.waitForTimeout(600);
+  check('the roadmap has no phase filter',
+    await page.locator('.filter-row select').filter({ has: page.locator('option', { hasText: 'Phase: All' }) }).count() === 0);
+  await page.locator('.row-title', { hasText: 'Salesforce Accreditation Model' }).first().click();
+  await page.waitForTimeout(400);
+  check('the panel has no phase field',
+    await page.locator('.modal .ribbon-label', { hasText: /^Phase$/ }).count() === 0);
+  await page.locator('.modal .icon-button').first().click();
+  await page.waitForTimeout(300);
+
   console.log('\nData');
   await page.locator('.nav-link', { hasText: 'Data' }).click();
   await page.waitForTimeout(700);
@@ -402,6 +427,11 @@ function check(name, ok, detail) {
   const guideFile = await guideDownload;
   check('the JSON guide downloads', /RoadmapJsonGuide_.*\.md/.test(guideFile.suggestedFilename()), guideFile.suggestedFilename());
 
+  const masterDownload = page.waitForEvent('download');
+  await page.locator('.button', { hasText: 'Export master data' }).click();
+  const masterFile = await masterDownload;
+  check('the master data file downloads', /RoadmapMasterData_.*\.json/.test(masterFile.suggestedFilename()), masterFile.suggestedFilename());
+
   const itemsBefore = await page.evaluate(() => window.RM.records('roadmapItems').length);
   const programmesBefore = await page.evaluate(() => window.RM.records('programmes').length);
   await page.setInputFiles('.file-picker-primary input[type=file]', {
@@ -411,7 +441,7 @@ function check(name, ok, detail) {
       programmes: [{ name: 'Drafted outside the tool', owner: 'Sarah', status: 'discovery' }],
       roadmapItems: [{
         programme: 'Drafted outside the tool', title: 'A drafted change',
-        systemAreas: ['csi'], types: ['system-change'], stream: 'csi',
+        systemAreas: ['csi'], types: ['system-change'], stream: 'ebike-app',
         startDate: '2027-04-01', endDate: '2027-06-30',
         tasks: [{ name: 'A drafted task', days: { po: 2, dev: 6 }, okrIds: ['kr-self-service'] }]
       }]

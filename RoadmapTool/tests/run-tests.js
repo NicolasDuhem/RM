@@ -111,7 +111,7 @@ async function run() {
   process.stdout.write('\nProgrammes and roadmap items\n');
   let rev = await revisions();
   const programme = await api('POST', '/api/dataset/programmes/create', {
-    revision: rev.programmes, editor: 'Tester', record: { name: 'Test Programme', owner: 'Ana', status: 'build' }
+    revision: rev.programmes, editor: 'Tester', record: { name: 'Test Programme', productOwners: ['Ana'], status: 'in-progress' }
   });
   equal('a new programme gets a stable id', programme.body.record.id, 'PRG-0001');
   equal('the file revision increases on save', programme.body.revision, rev.programmes + 1);
@@ -138,11 +138,11 @@ async function run() {
   const itemA = await api('POST', '/api/dataset/roadmapItems/create', {
     revision: rev.roadmapItems, editor: 'Tester',
     record: {
-      title: 'Item A', programmeId: 'PRG-0001', startDate: '2026-09-01', endDate: '2026-10-31', status: 'build',
+      title: 'Item A', programmeId: 'PRG-0001', startDate: '2026-09-01', endDate: '2026-10-31', status: 'in-progress',
       systemAreas: ['bpp', 'netsuite'], types: ['integration', 'rollout'], stream: 'b2b',
       productOwners: ['Nicolas', 'Sarah', 'Nicolas'], deliveryOwners: ['Jake'],
       tasks: [
-        { id: 'TSK-0001', name: 'Build it', status: 'build', owner: 'Jake', okrIds: ['kr-new-entities'],
+        { id: 'TSK-0001', name: 'Build it', status: 'in-progress', owner: 'Jake', okrIds: ['kr-new-entities'],
           links: [{ label: 'Jira INT-1', url: 'https://jira.example.com/browse/INT-1' }],
           days: { po: 2, dev: 8, int: 4, data: 0 } }
       ]
@@ -388,7 +388,7 @@ async function run() {
       title: 'Export sample', programmeId: exportProgramme.id,
       systemAreas: ['bpp', 'netsuite'], types: ['integration'], stream: 'b2b',
       startDate: '2027-01-01', endDate: '2027-03-31',
-      tasks: [{ id: 'TSK-9001', name: 'Build it', status: 'build', owner: 'Jake', days: { dev: 5 } }]
+      tasks: [{ id: 'TSK-9001', name: 'Build it', status: 'in-progress', owner: 'Jake', days: { dev: 5 } }]
     }
   });
 
@@ -440,24 +440,51 @@ async function run() {
   const guideResponse = await api('GET', '/api/export/guide');
   equal('the JSON guide is generated', guideResponse.status, 200);
   const guideText = String(guideResponse.body);
-  check('the guide lists the live statuses', guideText.indexOf('| `discovery` | Discovery |') > 0);
-  check('the guide lists the live streams', guideText.indexOf('Resource streams') > 0);
-  check('the guide lists both owner lists',
-    guideText.indexOf('**Product owners**') > 0 && guideText.indexOf('**Delivery owners**') > 0);
-  check('the guide names the people', guideText.indexOf('* Nicolas') > 0);
-  check('the guide lists the OKRs with both levels',
-    guideText.indexOf('`okr-dealer`') > 0 && guideText.indexOf('`kr-order-errors`') > 0);
+  check('the guide holds no master data of its own',
+    guideText.indexOf('Nicolas') < 0 && guideText.indexOf('| `in-progress` |') < 0);
+  check('it points at the master data file instead',
+    guideText.indexOf('settings.statuses') > 0 && guideText.indexOf('settings.resourceTypes') > 0);
+  check('it says which files to share',
+    guideText.indexOf('settings.json') > 0 && guideText.indexOf('Required') > 0);
   check('the guide tells the reader not to invent master data',
     guideText.indexOf('Never invent master data') > 0);
   check('a copy is written to the exports folder',
     fs.readdirSync(path.join(ROOT, 'exports')).some(function (f) { return f.indexOf('RoadmapJsonGuide') === 0; }));
 
-  // The example printed in the guide must itself be importable.
-  const example = JSON.parse(/## The shape[\s\S]*?```json\n([\s\S]*?)\n```/.exec(guideText)[1]);
+  const masterData = await api('GET', '/api/export/master-data');
+  equal('the master data file is produced', masterData.status, 200);
+  check('it carries every settings list',
+    ['statuses', 'systems', 'itemTypes', 'resourceStreams', 'resourceTypes', 'productOwners', 'deliveryOwners', 'okrs']
+      .every(function (key) { return Array.isArray(masterData.body.settings[key]); }));
+  check('it lists the programmes that already exist', Array.isArray(masterData.body.programmes));
+  check('it lists the system changes already planned', Array.isArray(masterData.body.roadmapItems));
+  check('it says what it is for', /never invent/i.test(masterData.body.purpose));
+  check('it leaves the bulky detail out',
+    masterData.body.roadmapItems.every(function (item) { return item.tasks === undefined && item.description === undefined; }));
+
+  // The example printed in the guide is a shape, not values, so it is checked
+  // for structure rather than imported.
+  const example = JSON.parse(/## The shape to produce[\s\S]*?```json\n([\s\S]*?)\n```/.exec(guideText)[1]);
+  check('the example is a shape with placeholders, not values',
+    JSON.stringify(example).indexOf('<id from settings.statuses>') > 0);
+  // Replace the placeholders with real values before importing it.
+  example.programmes[0].status = 'in-progress';
+  example.programmes[0].priority = 'high';
+  example.programmes[0].productOwners = [];
+  example.roadmapItems[0].systemAreas = ['bpp'];
+  example.roadmapItems[0].types = ['system-change'];
+  example.roadmapItems[0].stream = 'b2b';
+  example.roadmapItems[0].status = 'not-started';
+  example.roadmapItems[0].priority = 'medium';
+  example.roadmapItems[0].milestones[0].name = 'POC';
+  example.roadmapItems[0].tasks[0].status = 'not-started';
+  example.roadmapItems[0].tasks[0].owner = '';
+  example.roadmapItems[0].tasks[0].okrIds = ['kr-order-errors'];
+  example.roadmapItems[0].tasks[0].days = { po: 2, dev: 8 };
   const programmesBefore = (await records('programmes')).length;
   const itemsBefore = (await records('roadmapItems')).length;
   const added = await api('POST', '/api/import/add', { bundle: example, editor: 'Tester' });
-  equal('the example in the guide imports cleanly', added.status, 200);
+  equal('the shape from the guide imports cleanly once filled in', added.status, 200);
   equal('it raises no unknown-value warnings', added.body.warnings.length, 0);
   equal('nothing that already existed was replaced', (await records('programmes')).length, programmesBefore + added.body.programmes);
   equal('the system change was added', (await records('roadmapItems')).length, itemsBefore + 1);
@@ -495,7 +522,7 @@ async function run() {
     bundle: {
       roadmapItems: [{
         programme: example.programmes[0].name, title: 'Uses values nobody set up',
-        status: 'in-progress', systemAreas: ['sap'], stream: 'platform-team',
+        status: 'half-done', systemAreas: ['sap'], stream: 'platform-team',
         tasks: [{ name: 'T', okrIds: ['kr-made-up'], days: { dev: 2 } }]
       }]
     }
@@ -538,10 +565,10 @@ async function run() {
 
   const settingsOk = await api('POST', '/api/settings/save', {
     revision: (await revisions()).settings, editor: 'Tester', password: 'Brompton2026',
-    settings: { appName: 'Brompton Roadmap', statuses: [{ id: 'idea', name: 'Renamed idea' }] }
+    settings: { appName: 'Brompton Roadmap', statuses: [{ id: 'not-started', name: 'Renamed' }] }
   });
   equal('settings can be saved with the password', settingsOk.status, 200);
-  equal('a renamed status keeps its id', settingsOk.body.settings.statuses[0].id, 'idea');
+  equal('a renamed status keeps its id', settingsOk.body.settings.statuses[0].id, 'not-started');
   check('OKRs keep their two levels',
     settingsOk.body.settings.okrs.length > 0 && settingsOk.body.settings.okrs[0].children.length > 0);
   check('resource streams are part of settings', settingsOk.body.settings.resourceStreams.length > 0);

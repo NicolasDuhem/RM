@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-23T06:11:46.588Z",
+  "updatedAt": "2026-09-23T08:08:33.800Z",
   "records": [
     {
       "id": "DEP-0001",
@@ -8,7 +8,7 @@
       "toItemId": "RM-0002",
       "dependencyType": "predecessor",
       "description": "The matrix needs the Salesforce accreditation data model in place.",
-      "status": "open",
+      "status": "not-started",
       "owner": "Nicolas",
       "blocking": true,
       "notes": ""
@@ -19,7 +19,7 @@
       "toItemId": "RM-0003",
       "dependencyType": "predecessor",
       "description": "Catalogue restriction consumes the published accreditation matrix.",
-      "status": "open",
+      "status": "not-started",
       "owner": "Jake",
       "blocking": true,
       "notes": ""
@@ -30,7 +30,7 @@
       "toItemId": "RM-0009",
       "dependencyType": "gate",
       "description": "USA rollout waits for product eligibility to be enforced.",
-      "status": "open",
+      "status": "not-started",
       "owner": "Jake",
       "blocking": true,
       "notes": ""
@@ -41,7 +41,7 @@
       "toItemId": "RM-0009",
       "dependencyType": "system",
       "description": "USA rollout needs order integration live.",
-      "status": "open",
+      "status": "not-started",
       "owner": "Jake",
       "blocking": true,
       "notes": ""
@@ -52,7 +52,7 @@
       "toItemId": "RM-0012",
       "dependencyType": "data",
       "description": "Cross-entity visibility needs reliable per-entity stock first.",
-      "status": "open",
+      "status": "not-started",
       "owner": "Priya",
       "blocking": false,
       "notes": ""
@@ -63,7 +63,7 @@
       "toItemId": "RM-0005",
       "dependencyType": "data",
       "description": "Translation source depends on the agreed product data definition.",
-      "status": "open",
+      "status": "not-started",
       "owner": "Sarah",
       "blocking": false,
       "notes": ""

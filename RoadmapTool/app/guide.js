@@ -1,68 +1,91 @@
 'use strict';
 
 /**
- * Builds the Markdown guide that describes the roadmap JSON format.
+ * The Markdown guide that describes the roadmap JSON format.
  *
- * It is generated from the live settings, so the lists of allowed values it
- * contains are the ones this installation actually uses. Hand the file to
- * anybody (or to a chat assistant) who needs to draft programmes, system
- * changes and tasks for this roadmap.
+ * It deliberately contains no master data of its own: statuses, systems,
+ * streams, resource types, owners and OKRs are read from the master data file
+ * that is handed over with it, so the guide never goes stale and nobody is
+ * tempted to copy a value out of it.
  */
 
 const store = require('./fileStore');
 
 function build() {
   const settings = store.records('settings');
-  const resourceTypes = active(settings.resourceTypes);
+  const appName = settings.appName || 'Roadmap Tool';
   const out = [];
   const w = function (line) { out.push(line === undefined ? '' : line); };
 
   w('# Roadmap JSON guide');
   w();
-  w('_Generated from ' + (settings.appName || 'Roadmap Tool') +
-    ' on ' + new Date().toISOString().slice(0, 10) + '. Lists of allowed values are the ones this roadmap uses today._');
+  w('_For ' + appName + '. Generated ' + new Date().toISOString().slice(0, 10) + '._');
   w();
-  w('This file explains the JSON the roadmap tool accepts so you can draft new');
-  w('work outside the tool - including with a chat assistant - and import it.');
+  w('This guide explains the JSON the roadmap tool accepts, so programmes,');
+  w('system changes and tasks can be drafted outside it - including with a chat');
+  w('assistant - and then imported.');
+  w();
+  w('**It contains no lists of values on purpose.** Every status, system,');
+  w('stream, resource type, owner and OKR must be read from the master data');
+  w('file that comes with this guide.');
+  w();
+  w('## What to share with the assistant');
+  w();
+  w('Two files:');
+  w();
+  w('1. **This guide.**');
+  w('2. **The master data file** - in the roadmap tool, *Data -> Export master data*.');
+  w('   One JSON file holding the settings (every list the roadmap uses), the');
+  w('   programmes that already exist, and the system changes already on the');
+  w('   roadmap so nothing is drafted twice.');
+  w();
+  w('If you would rather send the raw files from the `data` folder instead:');
+  w();
+  w('| File | Needed? | Why |');
+  w('|---|---|---|');
+  w('| `settings.json` | **Required** | Holds every allowed value. |');
+  w('| `programmes.json` | Recommended | So work is attached to a programme that already exists instead of a duplicate. |');
+  w('| `roadmap-items.json` | Optional | Only if you want the assistant to see what is already planned. It is the largest file. |');
+  w('| `backlog.json`, `dependencies.json`, `resource-scenarios.json`, `audit.json` | No | Nothing here is drafted from them. |');
   w();
   w('## How to use it');
   w();
-  w('1. Give this whole file to your assistant (ChatGPT, Claude, whatever you use).');
+  w('1. Give the assistant this guide and the master data file.');
   w('2. Describe the programme, the system changes and the tasks you want, in plain words.');
-  w('3. Ask for **one JSON object, following this guide exactly**.');
+  w('3. Ask for **one JSON object, following this guide, using only ids found in the master data**.');
   w('4. Save the answer as a `.json` file.');
-  w('5. In the roadmap tool: **Data -> Import -> Add to the roadmap**, choose the file.');
+  w('5. In the roadmap tool: **Data -> Add to the roadmap**, and choose the file.');
   w();
   w('The import is additive: it adds what is in the file and leaves everything');
-  w('already on the roadmap alone. Ids are assigned by the tool, so you never');
-  w('write one yourself. If a programme in your file has the same name as one');
-  w('that already exists, your system changes are added under the existing');
-  w('programme instead of creating a second one with the same name.');
+  w('already on the roadmap alone. Ids are assigned by the tool, so none are');
+  w('ever written by hand. A programme whose name already exists is reused');
+  w('rather than duplicated, so several people can draft into the same one.');
   w();
   w('## The rules');
   w();
   w('**Create only these three things: programmes, system changes and tasks.**');
   w();
-  w('* A **programme** is a business outcome or larger initiative.');
+  w('* A **programme** is a business outcome or a larger initiative.');
   w('* A **system change** is a deliverable underneath a programme, and it carries the dates.');
   w('* A **task** is the work underneath a system change, and it carries the effort.');
   w();
-  w('**Never invent master data.** Statuses, priorities, systems, types, resource');
-  w('streams, resource types, people and OKRs are maintained inside the tool by');
-  w('an administrator. Use only the ids listed further down, exactly as written.');
-  w('Do not add, rename or "improve" them, and do not output any other dataset');
-  w('(no settings, no dependencies, no backlog, no resource scenarios).');
+  w('**Never invent master data.** Statuses, priorities, systems, types,');
+  w('resource streams, resource types, milestone types, people and OKRs are');
+  w('maintained inside the tool by an administrator. Read them from the master');
+  w('data file and use them exactly as written. Do not add to them, do not');
+  w('rename them, do not "improve" them, and never output a settings block, a');
+  w('dependency, a backlog item or a resource scenario.');
   w();
-  w('**If nothing in a list fits, leave the field empty (`""`), never guess.**');
-  w('That applies especially to people and to the resource stream: if you cannot');
-  w('match a real name or a real stream, leave it empty and somebody will pick it');
-  w('in the tool afterwards.');
+  w('**If nothing in a list fits, leave the field empty** - `""` for a single');
+  w('value, `[]` for a list - and say so in the notes. Never guess, and never');
+  w('invent a person: if no name in the file is right, leave the owners empty');
+  w('and somebody will pick them in the tool afterwards.');
   w();
-  w('**Effort is always filled in.** Even when the stream or the owner is left');
-  w('empty, every task must carry the days it needs under `days`, using the');
-  w('resource type ids below. Use whole or half days. Use `0` where a discipline');
-  w('is not needed. Effort belongs on tasks only: the system change and the');
-  w('programme add theirs up automatically.');
+  w('**Effort is always filled in.** Even when the stream and the owners are');
+  w('left empty, every task carries the days it needs under `days`, keyed by');
+  w('the resource type ids from the master data. Whole or half days. `0` where');
+  w('a discipline is not needed. Effort belongs on tasks only - the system');
+  w('change and the programme add theirs up automatically.');
   w();
   w('**Dates**');
   w();
@@ -70,14 +93,56 @@ function build() {
   w('* Only system changes have dates. Tasks run with the system change above them.');
   w('* `endDate` must be the same as, or after, `startDate`.');
   w('* A programme never has dates: the tool works them out from its system changes.');
-  w('* If the timing is genuinely unknown, use `""` for both dates and say so in the notes.');
+  w('* If the timing is genuinely unknown, use `""` for both and say so in the notes.');
   w();
-  w('## The shape');
+  w('## Where each value comes from');
   w();
-  w('One object, with one or both of these lists. Anything else is ignored.');
+  w('Read the master data file and use what is in it. Nothing else is valid.');
+  w();
+  w('| Field you are filling in | Read from | Write the |');
+  w('|---|---|---|');
+  w('| `status` | `settings.statuses` | `id` |');
+  w('| `priority` | `settings.priorities` | `id` |');
+  w('| `systemAreas` | `settings.systems` | `id` of each |');
+  w('| `types` | `settings.itemTypes` | `id` of each |');
+  w('| `stream` | `settings.resourceStreams` | `id` |');
+  w('| keys inside `days` | `settings.resourceTypes` | `id` as the key |');
+  w('| `milestones[].name` | `settings.milestoneTypes` | `name` |');
+  w('| `okrIds` | `settings.okrs` and their `children` | `id` of either level |');
+  w('| `productOwners` | `settings.productOwners` | `name` of each |');
+  w('| `deliveryOwners` | `settings.deliveryOwners` | `name` of each |');
+  w('| task `owner` | `settings.productOwners` or `settings.deliveryOwners` | one `name` |');
+  w('| `programme` | `programmes` in the master data, or a programme you are creating in the same file | `name` |');
+  w();
+  w('Every list in the settings has the same shape, and only the entries with');
+  w('`"active": true` may be used:');
   w();
   w('```json');
-  w(JSON.stringify(example(settings, resourceTypes), null, 2));
+  w('"statuses": [');
+  w('  { "id": "some-id", "name": "Some label", "colour": "#2563eb", "active": true }');
+  w(']');
+  w('```');
+  w();
+  w('OKRs have two levels - an objective with its key results underneath - and');
+  w('a task may point at either:');
+  w();
+  w('```json');
+  w('"okrs": [');
+  w('  {');
+  w('    "id": "objective-id", "name": "The objective", "active": true,');
+  w('    "children": [ { "id": "key-result-id", "name": "The key result", "active": true } ]');
+  w('  }');
+  w(']');
+  w('```');
+  w();
+  w('## The shape to produce');
+  w();
+  w('One object, with one or both of these lists. Anything else is ignored.');
+  w('Every `<...>` below is a placeholder: replace it with a value read from the');
+  w('master data, or with an empty string or list when nothing fits.');
+  w();
+  w('```json');
+  w(JSON.stringify(shape(), null, 2));
   w('```');
   w();
   w('### Programme fields');
@@ -88,40 +153,35 @@ function build() {
     ['`shortName`', 'no', 'A shorter label for the roadmap bar.'],
     ['`description`', 'no', 'What the programme covers.'],
     ['`businessOutcome`', 'no', 'The outcome in business terms, not technical terms.'],
-    ['`productOwners`', 'no', 'A list of names from the product owner list, or `[]`.'],
-    ['`deliveryOwners`', 'no', 'A list of names from the delivery owner list, or `[]`.'],
-    ['`status`', 'no', 'A status id from the list below.'],
-    ['`priority`', 'no', 'A priority id from the list below.'],
-    ['`notes`', 'no', 'Anything else worth recording.']
+    ['`productOwners`', 'no', 'Names from `settings.productOwners`. Several allowed, `[]` if unsure.'],
+    ['`deliveryOwners`', 'no', 'Names from `settings.deliveryOwners`. Several allowed, `[]` if unsure.'],
+    ['`status`, `priority`', 'no', 'Ids from the matching settings list.'],
+    ['`notes`', 'no', 'Anything else worth recording, including what you were unsure about.']
   ]));
   w();
   w('### System change fields');
   w();
   w(table([
     ['Field', 'Required', 'What it is'],
-    ['`programme`', 'yes', 'The name of the programme it belongs to (from your file, or one already on the roadmap).'],
+    ['`programme`', 'yes', 'The **name** of the programme it belongs to - one from the master data, or one you are creating in the same file.'],
     ['`title`', 'yes', 'What is changing.'],
     ['`shortTitle`', 'no', 'A shorter label for the roadmap bar.'],
-    ['`systemAreas`', 'no', 'A list of system ids. A change can touch several.'],
-    ['`types`', 'no', 'A list of type ids. A change can be of several types.'],
+    ['`systemAreas`', 'no', 'Ids from `settings.systems`. A change can touch several.'],
+    ['`types`', 'no', 'Ids from `settings.itemTypes`. A change can be of several types.'],
     ['`subArea`', 'no', 'Free text, for example "Accreditation" or "Order to cash".'],
-    ['`stream`', 'no', 'A resource stream id: the team whose capacity this consumes. `""` if unsure.'],
-    ['`status`, `priority`', 'no', 'Ids from the lists below.'],
-    ['`currentPhase`', 'no', 'A milestone type id - where the work is now.'],
+    ['`stream`', 'no', 'An id from `settings.resourceStreams`: whose capacity this consumes.'],
+    ['`status`, `priority`', 'no', 'Ids from the matching settings list.'],
     ['`startDate`, `endDate`', 'no', 'ISO dates. These place the bar on the roadmap.'],
-    ['`targetDate`', 'no', 'A date it is aimed at, if different from the end date.'],
-    ['`productOwners`', 'no', 'A list of names from the product owner list. Several are allowed. `[]` if unsure.'],
-    ['`deliveryOwners`', 'no', 'A list of names from the delivery owner list. Several are allowed. `[]` if unsure.'],
+    ['`targetDate`', 'no', 'A date it is aimed at, when that differs from the end date.'],
+    ['`productOwners`, `deliveryOwners`', 'no', 'Names from the matching settings list, or `[]`.'],
     ['`description`', 'no', 'What the change is.'],
     ['`businessOutcome`', 'no', 'Why it is worth doing.'],
     ['`problemStatement`', 'no', 'The problem it solves today.'],
     ['`systemDependencies`, `businessDependencies`, `dataDependencies`', 'no', 'Dependencies described in words.'],
-    ['`recommendedApproach`, `tradeOffs`, `pocNotes`', 'no', 'How to do it, and what it costs to do it that way.'],
+    ['`recommendedApproach`, `tradeOffs`, `pocNotes`', 'no', 'How to do it, and what doing it that way costs.'],
     ['`comments`, `notes`', 'no', 'Anything else.'],
-    ['`milestones`', 'no', 'See below.'],
-    ['`risks`', 'no', 'See below.'],
-    ['`gates`', 'no', 'Decisions or gates. See below.'],
-    ['`tasks`', 'yes in practice', 'The work. See below - this is where effort lives.']
+    ['`milestones`, `risks`, `gates`', 'no', 'See below.'],
+    ['`tasks`', 'yes in practice', 'The work, and where effort lives. See below.']
   ]));
   w();
   w('### Task fields');
@@ -130,14 +190,12 @@ function build() {
     ['Field', 'Required', 'What it is'],
     ['`name`', 'yes', 'The task, in a few words.'],
     ['`description`', 'no', 'What doing it involves.'],
-    ['`status`', 'no', 'A status id from the list below.'],
-    ['`owner`', 'no', 'One name, from either owner list, or `""`.'],
-    ['`stream`', 'no', 'A resource stream id, only when it differs from the system change.'],
-    ['`okrIds`', 'no', 'A list of OKR ids this task moves. Objective or key result ids, from the list below.'],
-    ['`links`', 'no', 'External links: `[{ "label": "Jira ABC-1", "url": "https://..." }]`. As many as you like.'],
-    ['`days`', 'yes', 'Effort per resource type: ' + resourceTypes.map(function (type) {
-      return '`' + type.id + '` (' + type.name + ')';
-    }).join(', ') + '.'],
+    ['`status`', 'no', 'An id from `settings.statuses`.'],
+    ['`owner`', 'no', 'One name from either owner list, or `""`.'],
+    ['`stream`', 'no', 'An id from `settings.resourceStreams`, only when it differs from the system change.'],
+    ['`okrIds`', 'no', 'Ids from `settings.okrs` or their `children`. Prefer a key result when one fits.'],
+    ['`links`', 'no', 'External links: `[{ "label": "Jira ABC-1", "url": "https://..." }]`. As many as needed.'],
+    ['`days`', 'yes', 'Effort in days, keyed by the ids in `settings.resourceTypes`.'],
     ['`notes`', 'no', 'Anything else.']
   ]));
   w();
@@ -145,76 +203,59 @@ function build() {
   w();
   w('```json');
   w(JSON.stringify({
-    milestones: [{ name: firstName(settings.milestoneTypes, 'Build'), date: '2027-02-15', status: firstId(settings.statuses, 'idea'), notes: '' }],
+    milestones: [{
+      name: '<name from settings.milestoneTypes>',
+      date: '2027-02-15',
+      status: '<id from settings.statuses>',
+      notes: 'Shown when somebody hovers the milestone on the roadmap.'
+    }],
     risks: [{
-      title: 'Short name for the risk', description: 'What could go wrong.',
-      impact: 'High', probability: 'Medium', mitigation: 'What reduces it.',
-      owner: '', status: 'open'
+      title: 'Short name for the risk',
+      description: 'What could go wrong.',
+      impact: 'High',
+      probability: 'Medium',
+      mitigation: 'What reduces it.',
+      owner: '',
+      status: 'open'
     }],
     gates: [{
-      title: 'The decision that is needed', description: 'What has to be decided, and by whom.',
-      owner: '', requiredByDate: '2027-01-15', status: 'open', decision: '', decisionDate: '', notes: ''
+      title: 'The decision that is needed',
+      description: 'What has to be decided, and by whom.',
+      owner: '',
+      requiredByDate: '2027-01-15',
+      status: 'open',
+      decision: '',
+      decisionDate: '',
+      notes: ''
     }]
   }, null, 2));
   w('```');
   w();
-  w('`impact` and `probability` are `High`, `Medium` or `Low`. Risk `status` is');
-  w('`open`, `mitigated` or `closed`. Gate `status` is `open`, `decided` or `closed`.');
-  w('A milestone `name` must be one of the milestone types listed below.');
+  w('`impact` and `probability` are `High`, `Medium` or `Low`. A risk `status`');
+  w('is `open`, `mitigated` or `closed`; a gate `status` is `open`, `decided` or');
+  w('`closed`. These four are the only fixed vocabularies in the whole format -');
+  w('everything else comes from the master data.');
   w();
-  w('## The values you may use');
-  w();
-  w('Use the **id** (the left-hand column), never the label.');
-  w();
-  w(optionSection('Statuses', settings.statuses));
-  w(optionSection('Priorities', settings.priorities));
-  w(optionSection('Systems', settings.systems));
-  w(optionSection('Types', settings.itemTypes));
-  w(optionSection('Milestone types', settings.milestoneTypes));
-  w(optionSection('Resource streams (the team whose capacity is used)', settings.resourceStreams));
-  w(optionSection('Resource types (the keys inside `days`)', settings.resourceTypes));
-  w();
-  w('### People');
-  w();
-  w('Owner fields hold the **name**, written exactly as below. A programme or');
-  w('system change may name several of each. Anybody not on these lists must be');
-  w('left out.');
-  w();
-  w('**Product owners**');
-  w();
-  w(peopleList(settings.productOwners));
-  w();
-  w('**Delivery owners**');
-  w();
-  w(peopleList(settings.deliveryOwners));
-  w();
-  w('A task has a single `owner`, who may come from either list.');
-  w();
-  w('### OKRs');
-  w();
-  w('Two levels: objectives, each with its own key results. A task may point at');
-  w('either level. Prefer the key result when one fits.');
-  w();
-  w(okrSection(settings.okrs));
-  w();
-  w('## Checklist before you hand the file over');
+  w('## Checklist before handing the file over');
   w();
   w('* Only `programmes` and `roadmapItems` in the file, nothing else.');
-  w('* No `id` fields anywhere - the tool assigns them.');
-  w('* Every id used for a status, priority, system, type, stream or OKR appears in the lists above.');
-  w('* Every owner is a name from the matching list; `[]` or `""` when nobody fits.');
-  w('* Every task has `days`, even when the owner and stream are empty.');
-  w('* Every system change points at a programme by name.');
+  w('* No `id` field anywhere - the tool assigns them.');
+  w('* Every status, priority, system, type, stream, milestone name, OKR and person appears in the master data file, spelled exactly as it is there.');
+  w('* Nothing was invented to fill a gap; gaps are empty and explained in the notes.');
+  w('* Every task has `days`, keyed by the resource type ids.');
+  w('* Every system change names a programme.');
   w('* Dates are `YYYY-MM-DD`, and no end date is before its start date.');
-  w('* It is valid JSON: no trailing commas, no comments, double quotes throughout.');
+  w('* It is valid JSON: double quotes throughout, no trailing commas, no comments.');
   w();
   w('## A worked prompt');
   w();
-  w('> Here is our roadmap JSON guide. Using only the ids it lists, draft a');
-  w('> programme called "Dealer Self-Service" with three system changes and');
-  w('> four to six tasks each. The work runs from March to September 2027.');
-  w('> Estimate the days for each task. Where you cannot match a person or a');
-  w('> stream, leave it empty. Answer with the JSON only.');
+  w('> Here is our roadmap JSON guide and our master data file. Using only the');
+  w('> ids and names found in the master data, draft a programme called');
+  w('> "Dealer Self-Service" with three system changes and four to six tasks');
+  w('> each, running from March to September 2027. Estimate the days for each');
+  w('> task against our resource types. Where nothing in the master data fits -');
+  w('> a person, a stream, a system - leave the field empty and note why.');
+  w('> Answer with the JSON only.');
   w();
 
   return out.join('\n');
@@ -222,79 +263,15 @@ function build() {
 
 /* ------------------------------------------------------------------ */
 
-function active(list) {
-  return (Array.isArray(list) ? list : []).filter(function (entry) { return entry && entry.active !== false; });
-}
-
-function firstId(list, fallback) {
-  const entries = active(list);
-  return entries.length ? entries[0].id : fallback;
-}
-
-function firstName(list, fallback) {
-  const entries = active(list);
-  return entries.length ? entries[0].name : fallback;
-}
-
-function idOf(list, preferred, fallback) {
-  const entries = active(list);
-  const match = entries.find(function (entry) { return entry.id === preferred; });
-  if (match) return match.id;
-  return entries.length ? entries[0].id : fallback;
-}
-
 function table(rows) {
   const header = rows[0];
-  const body = rows.slice(1);
   const lines = ['| ' + header.join(' | ') + ' |', '|' + header.map(function () { return '---'; }).join('|') + '|'];
-  body.forEach(function (row) { lines.push('| ' + row.join(' | ') + ' |'); });
+  rows.slice(1).forEach(function (row) { lines.push('| ' + row.join(' | ') + ' |'); });
   return lines.join('\n');
 }
 
-function optionSection(title, list) {
-  const entries = active(list);
-  const lines = ['### ' + title, ''];
-  if (!entries.length) {
-    lines.push('_Nothing set up yet - leave these fields empty._');
-    return lines.join('\n') + '\n';
-  }
-  lines.push(table([['Id', 'Label']].concat(entries.map(function (entry) {
-    return ['`' + entry.id + '`', entry.name];
-  }))));
-  lines.push('');
-  return lines.join('\n');
-}
-
-function peopleList(list) {
-  const entries = active(list);
-  if (!entries.length) return '_Nobody set up yet - leave this empty._';
-  return entries.map(function (person) { return '* ' + person.name; }).join('\n');
-}
-
-function okrSection(okrs) {
-  const objectives = active(okrs);
-  if (!objectives.length) return '_No OKRs have been set up yet. Leave `okrIds` empty._';
-  const lines = [];
-  objectives.forEach(function (objective) {
-    lines.push('* **' + objective.name + '** - `' + objective.id + '`');
-    active(objective.children).forEach(function (keyResult) {
-      lines.push('  * ' + keyResult.name + ' - `' + keyResult.id + '`');
-    });
-  });
-  return lines.join('\n');
-}
-
-function example(settings, resourceTypes) {
-  const days = {};
-  resourceTypes.forEach(function (type, index) {
-    days[type.id] = index === 0 ? 2 : (index === 1 ? 8 : 0);
-  });
-  const secondDays = {};
-  resourceTypes.forEach(function (type, index) {
-    secondDays[type.id] = index === 1 ? 5 : (index === 2 ? 6 : 1);
-  });
-  const okr = firstOkrId(settings.okrs);
-
+/** The structure, with placeholders instead of values. */
+function shape() {
   return {
     programmes: [
       {
@@ -302,10 +279,10 @@ function example(settings, resourceTypes) {
         shortName: 'Dealer Self-Service',
         description: 'Let dealers do for themselves what they ring us about today.',
         businessOutcome: 'Fewer support calls and faster answers for dealers.',
-        productOwners: firstName(settings.productOwners, '') ? [firstName(settings.productOwners, '')] : [],
+        productOwners: ['<name from settings.productOwners, or leave the list empty>'],
         deliveryOwners: [],
-        status: idOf(settings.statuses, 'discovery', ''),
-        priority: idOf(settings.priorities, 'high', ''),
+        status: '<id from settings.statuses>',
+        priority: '<id from settings.priorities>',
         notes: ''
       }
     ],
@@ -314,13 +291,12 @@ function example(settings, resourceTypes) {
         programme: 'Dealer Self-Service',
         title: 'Self-service order status',
         shortTitle: 'Order status',
-        systemAreas: [firstId(settings.systems, '')],
-        types: [firstId(settings.itemTypes, '')],
+        systemAreas: ['<id from settings.systems>'],
+        types: ['<id from settings.itemTypes>'],
         subArea: 'Dealer portal',
-        stream: firstId(settings.resourceStreams, ''),
-        status: idOf(settings.statuses, 'definition', ''),
-        priority: idOf(settings.priorities, 'medium', ''),
-        currentPhase: '',
+        stream: '<id from settings.resourceStreams>',
+        status: '<id from settings.statuses>',
+        priority: '<id from settings.priorities>',
         startDate: '2027-03-01',
         endDate: '2027-05-31',
         targetDate: '',
@@ -338,7 +314,7 @@ function example(settings, resourceTypes) {
         comments: '',
         notes: '',
         milestones: [
-          { name: firstName(settings.milestoneTypes, 'Build'), date: '2027-04-15', status: '', notes: '' }
+          { name: '<name from settings.milestoneTypes>', date: '2027-04-15', status: '', notes: 'What this milestone means.' }
         ],
         risks: [],
         gates: [],
@@ -346,39 +322,18 @@ function example(settings, resourceTypes) {
           {
             name: 'Design the status screen',
             description: 'Screen and states, agreed with two dealers.',
-            status: idOf(settings.statuses, 'ready', ''),
-            owner: '',
+            status: '<id from settings.statuses>',
+            owner: '<one name from either owner list, or empty>',
             stream: '',
-            okrIds: okr ? [okr] : [],
+            okrIds: ['<id from settings.okrs or their children>'],
             links: [{ label: 'Jira ABC-101', url: 'https://jira.example.com/browse/ABC-101' }],
-            days: days,
-            notes: ''
-          },
-          {
-            name: 'Publish order status to the portal',
-            description: 'Feed status changes through to the dealer portal.',
-            status: idOf(settings.statuses, 'idea', ''),
-            owner: '',
-            stream: '',
-            okrIds: [],
-            links: [],
-            days: secondDays,
+            days: { '<id from settings.resourceTypes>': 2, '<another resource type id>': 8 },
             notes: ''
           }
         ]
       }
     ]
   };
-}
-
-function firstOkrId(okrs) {
-  const objectives = active(okrs);
-  for (let i = 0; i < objectives.length; i += 1) {
-    const children = active(objectives[i].children);
-    if (children.length) return children[0].id;
-    return objectives[i].id;
-  }
-  return '';
 }
 
 module.exports = { build: build };

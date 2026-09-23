@@ -121,6 +121,9 @@ Customer / Dealer Master & Accreditation
     BPP Product Eligibility Restriction
 ```
 
+**Milestones** are per system change, and each one can carry a note - hover the
+diamond on the roadmap to read it.
+
 **Key dates** are the dates the business plans around - a freeze, a board
 meeting, a year end. Add them in Settings (a label and a date), and each one is
 drawn down the whole roadmap with its label at the top, like the TODAY line.
@@ -150,7 +153,7 @@ to see its tasks.
 | **Backlog**      | Requirements not yet on the roadmap, and *Move to Roadmap* when they are ready. |
 | **Resources**    | The monthly capacity plan, and demand against it.                        |
 | **Data**         | Backup, export, import, restore, and the change history.                 |
-| **Settings**     | People, systems, statuses, priorities, streams, OKRs, quarters, port and more. Password protected. |
+| **Settings**     | Owners, systems, statuses, priorities, streams, OKRs, key dates, quarters, port and more. Password protected. |
 
 Click any bar or title on the roadmap to open the record panel: summary, tasks,
 dependencies, risks and decisions, delivery (Fast MVP versus Standard), the
@@ -183,16 +186,27 @@ exactly the same save as the panel, so it gets the same protection.
 
 ## Drafting work outside the tool
 
-Not everybody wants to type into the roadmap. **Data -> Download the JSON
-guide** produces a Markdown file describing the JSON this tool accepts,
-including the statuses, systems, streams, people and OKRs *your* roadmap
-actually uses. Hand it to a colleague, or paste it into a chat assistant, and
-ask for programmes, system changes and tasks in that format.
+Not everybody wants to type into the roadmap. The Data screen produces **two
+files** to hand to a colleague or paste into a chat assistant:
 
-The guide is explicit that only those three things may be created: it must not
-invent statuses, systems, streams, OKRs or people, and where nothing in the
-lists fits it leaves the field empty - but it always fills in the days a task
-needs, so the work can be costed and somebody can assign the team later.
+1. **Download the JSON guide** - how the JSON is shaped. It holds no values of
+   its own, on purpose, so it never goes stale and nobody copies a status out
+   of it.
+2. **Export master data** - one JSON file with every list the roadmap uses
+   (statuses, systems, types, streams, resource types, owners, OKRs), the
+   programmes that already exist and the system changes already planned.
+
+Then describe what you want and ask for JSON that follows the guide **using
+only ids found in the master data**. The guide is explicit that only
+programmes, system changes and tasks may be created, that master data must
+never be invented, and that where nothing fits the field is left empty and
+explained - but the days a task needs are always filled in, so the work can be
+costed and somebody can pick the team later.
+
+If you would rather send raw files from the `data` folder: `settings.json` is
+required, `programmes.json` is recommended so work lands under a programme
+that already exists, `roadmap-items.json` is optional context, and nothing
+else is needed.
 
 Bring the result in with **Data -> Add to the roadmap (JSON)**. That import is
 additive: it adds what is in the file and changes nothing that is already
@@ -202,8 +216,7 @@ programme. If anything is wrong, nothing at all is imported and the problems
 are listed. Values that are not in Settings do not block the import but are
 reported back so they can be corrected.
 
-A snapshot of the guide is in [`docs/roadmap-json-guide.md`](docs/roadmap-json-guide.md),
-but download a fresh one whenever you change a list in Settings.
+A snapshot of the guide is in [`docs/roadmap-json-guide.md`](docs/roadmap-json-guide.md).
 
 ## Resources: capacity and demand
 

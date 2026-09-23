@@ -301,7 +301,6 @@
           },
           { name: 'status', label: 'Status', type: 'select', list: 'statuses', badge: 'status', options: RM.selectOptions('statuses') },
           { name: 'priority', label: 'Priority', type: 'select', list: 'priorities', badge: 'priority', options: RM.selectOptions('priorities') },
-          { name: 'currentPhase', label: 'Phase', type: 'select', list: 'milestoneTypes', options: RM.selectOptions('milestoneTypes') },
           { name: 'startDate', label: 'Start', type: 'date' },
           { name: 'endDate', label: 'End', type: 'date' },
           { name: 'targetDate', label: 'Target', type: 'date' },

@@ -35,7 +35,7 @@ window.RM = (function () {
   function emptyFilters() {
     return {
       programme: '', system: '', status: '', productOwner: '', deliveryOwner: '',
-      priority: '', type: '', phase: '', stream: '', okr: '', dateFrom: '', dateTo: '', search: ''
+      priority: '', type: '', stream: '', okr: '', dateFrom: '', dateTo: '', search: ''
     };
   }
   RM.emptyFilters = emptyFilters;
@@ -331,6 +331,21 @@ window.RM = (function () {
   /** The stream a task belongs to: its own, or the one on its system change. */
   RM.streamOf = function (item, task) {
     return (task && task.stream) || (item && item.stream) || '';
+  };
+
+  /**
+   * Whether a status means "finished" or "stopped". Statuses are configurable,
+   * so this recognises the usual words rather than a fixed list of ids - it is
+   * only used for counting, never for storing anything.
+   */
+  RM.isClosedStatus = function (statusId) {
+    const label = (optionName('statuses', statusId) || statusId || '').toLowerCase();
+    return /released|live|done|complete|closed|cancel/.test(label);
+  };
+
+  RM.isBlockedStatus = function (statusId) {
+    const label = (optionName('statuses', statusId) || statusId || '').toLowerCase();
+    return /block|hold/.test(label);
   };
 
   RM.statusBadge = function (statusId) {
@@ -1093,7 +1108,6 @@ window.RM = (function () {
     if (filters.type && (item.types || []).indexOf(filters.type) < 0) return false;
     if (filters.stream && !itemUsesStream(item, filters.stream)) return false;
     if (filters.okr && !itemUsesOkr(item, filters.okr)) return false;
-    if (filters.phase && item.currentPhase !== filters.phase) return false;
     if (filters.productOwner && (item.productOwners || []).indexOf(filters.productOwner) < 0) return false;
     if (filters.deliveryOwner && (item.deliveryOwners || []).indexOf(filters.deliveryOwner) < 0) return false;
     if (filters.dateFrom && item.endDate && item.endDate < filters.dateFrom) return false;

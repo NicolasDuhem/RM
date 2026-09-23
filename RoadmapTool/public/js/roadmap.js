@@ -99,7 +99,7 @@
 
   function itemFiltersActive() {
     const filters = RM.state.ui.filters;
-    return ['system', 'status', 'owner', 'productOwner', 'priority', 'type', 'phase', 'dateFrom', 'dateTo']
+    return ['system', 'status', 'productOwner', 'deliveryOwner', 'priority', 'type', 'stream', 'okr', 'dateFrom', 'dateTo']
       .some(function (key) { return filters[key]; });
   }
 
@@ -132,29 +132,47 @@
     const today = RM.dates.todayIso();
     const in30 = RM.dates.toIso(RM.dates.addDays(new Date(), 30));
 
-    const inBuild = items.filter(function (i) { return i.status === 'build'; }).length;
-    const blocked = items.filter(function (i) { return i.status === 'blocked' || i.status === 'on-hold'; }).length;
-    const openDependencies = dependencies.filter(function (d) { return d.status !== 'live' && d.status !== 'closed' && d.status !== 'cancelled'; }).length;
+    const taskCount = items.reduce(function (total, item) { return total + (item.tasks || []).length; }, 0);
+    const openDependencies = dependencies.filter(function (d) { return !RM.isClosedStatus(d.status); }).length;
     const openGates = items.reduce(function (total, item) {
       return total + (item.gates || []).filter(function (g) { return g.status !== 'closed' && g.status !== 'decided'; }).length;
     }, 0);
     const endingSoon = items.filter(function (i) { return i.endDate && i.endDate >= today && i.endDate <= in30; }).length;
-
     const upcoming = nextMilestone(items);
 
     return el('section', 'summary-strip', [
       stat(programmes.length, 'Programmes'),
       stat(items.length, 'System Changes'),
-      stat(inBuild, 'In Build'),
-      stat(blocked, 'Blocked / On Hold'),
+      stat(taskCount, 'Tasks'),
       stat(openDependencies + openGates, 'Dependencies / Gates Open'),
       stat(endingSoon, 'Ending in next 30 days'),
+      // A count per configured status, so renaming one in Settings is enough.
+      el('div', 'summary-card summary-card-wide', [
+        el('span', 'summary-label', 'By status'),
+        el('div', 'summary-statuses', RM.options.active('statuses').map(function (status) {
+          const count = items.filter(function (i) { return i.status === status.id; }).length;
+          if (!count) return null;
+          const colour = status.colour || '#64748b';
+          return el('button', {
+            class: 'status-count' + (RM.state.ui.filters.status === status.id ? ' status-count-active' : ''),
+            type: 'button',
+            title: 'Show only ' + status.name,
+            style: { background: RM.fade(colour, 0.12), color: colour, borderColor: RM.fade(colour, 0.35) },
+            onclick: function () {
+              const filters = RM.state.ui.filters;
+              filters.status = filters.status === status.id ? '' : status.id;
+              RM.savePrefs();
+              RM.renderView();
+            }
+          }, [el('strong', null, String(count)), el('span', null, status.name)]);
+        }))
+      ]),
       el('div', 'summary-card summary-card-wide', [
         el('span', 'summary-label', 'Next major milestone'),
         upcoming
           ? el('span', 'summary-next', [
             el('strong', null, upcoming.milestone.name || 'Milestone'),
-            el('span', 'muted', ' · ' + RM.dates.formatDate(upcoming.milestone.date)),
+            el('span', 'muted', ' \u00b7 ' + RM.dates.formatDate(upcoming.milestone.date)),
             el('span', 'summary-next-item', upcoming.item.title)
           ])
           : el('span', 'muted', 'No dated milestones ahead')
@@ -284,7 +302,6 @@
         select('status', 'Status', optionValues('statuses')),
         select('priority', 'Priority', optionValues('priorities')),
         select('type', 'Type', optionValues('itemTypes')),
-        select('phase', 'Phase', optionValues('milestoneTypes')),
         select('stream', 'Stream', optionValues('resourceStreams')),
         select('okr', 'OKR', RM.okrs.flat().map(function (entry) {
           return { value: entry.id, label: (entry.level === 2 ? '\u2014 ' : '') + entry.name };
@@ -340,7 +357,7 @@
     const filters = RM.state.ui.filters;
     const labels = {
       programme: 'Programme', system: 'System', status: 'Status', priority: 'Priority',
-      type: 'Type', phase: 'Phase', productOwner: 'Product Owner', deliveryOwner: 'Delivery Owner',
+      type: 'Type', productOwner: 'Product Owner', deliveryOwner: 'Delivery Owner',
       stream: 'Stream', okr: 'OKR', dateFrom: 'From', dateTo: 'To', search: 'Search'
     };
     const display = {
@@ -349,7 +366,6 @@
       status: function (v) { return RM.options.name('statuses', v); },
       priority: function (v) { return RM.options.name('priorities', v); },
       type: function (v) { return RM.options.name('itemTypes', v); },
-      phase: function (v) { return RM.options.name('milestoneTypes', v); },
       stream: function (v) { return RM.options.name('resourceStreams', v); },
       okr: function (v) { return RM.okrs.shortLabel(v); },
       dateFrom: RM.dates.formatDate,
@@ -540,7 +556,7 @@
     const ui = RM.state.ui;
     const deps = RM.dependenciesFor(item.id);
     const dependencyCount = deps.dependsOn.length + deps.blocks.length;
-    const blocked = deps.dependsOn.some(function (d) { return d.blocking && d.status !== 'closed' && d.status !== 'live'; });
+    const blocked = deps.dependsOn.some(function (d) { return d.blocking && !RM.isClosedStatus(d.status); });
     const openGates = (item.gates || []).filter(function (g) { return g.status !== 'closed' && g.status !== 'decided'; });
     const openRisks = (item.risks || []).filter(function (r) { return r.status !== 'closed'; });
     const tasks = item.tasks || [];
@@ -627,16 +643,33 @@
     const date = RM.dates.parseIso(milestone.date);
     if (!date || date < timeline.start || date >= timeline.endExclusive) return null;
     const x = timeline.dateToX(date);
-    const marker = el('div', {
-      class: 'milestone',
-      style: { left: (x - 6) + 'px' },
-      title: (milestone.name || 'Milestone') + ' · ' + RM.dates.formatDate(milestone.date)
-    });
+    const marker = el('div', { class: 'milestone', style: { left: (x - 6) + 'px' } });
+    attachTooltip(marker, function () { return milestoneTooltip(milestone, itemId); });
     marker.addEventListener('click', function (event) {
       event.stopPropagation();
       if (itemId) RM.editor.openDetail(itemId, 'milestones');
     });
     return marker;
+  }
+
+  /** The milestone tooltip carries its note - that is where it is written. */
+  function milestoneTooltip(milestone, itemId) {
+    const item = itemId ? RM.itemById(itemId) : null;
+    return [
+      el('strong', 'tooltip-title', milestone.name || 'Milestone'),
+      el('div', 'tooltip-dates', RM.dates.formatDate(milestone.date)),
+      item ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'System change'), el('span', null, item.title)]) : null,
+      milestone.itemTitle && !item
+        ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'System change'), el('span', null, milestone.itemTitle)])
+        : null,
+      milestone.status
+        ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Status'), el('span', null, RM.options.name('statuses', milestone.status))])
+        : null,
+      milestone.notes
+        ? el('div', 'tooltip-note', milestone.notes)
+        : el('div', 'tooltip-hint', 'No note on this milestone'),
+      el('div', 'tooltip-hint', 'Click to open the milestones')
+    ];
   }
 
   /* ---------------------------------------------------------------- */

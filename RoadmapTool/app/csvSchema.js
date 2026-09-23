@@ -43,7 +43,6 @@ function baseSchema(dataset) {
         option('Stream', 'stream', 'resourceStreams'),
         option('Status', 'status', 'statuses'),
         option('Priority', 'priority', 'priorities'),
-        option('Current Phase', 'currentPhase', 'milestoneTypes'),
         date('Start Date', 'startDate'),
         date('End Date', 'endDate'),
         date('Target Date', 'targetDate'),
