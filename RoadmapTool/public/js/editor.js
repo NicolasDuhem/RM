@@ -678,6 +678,16 @@
     ]);
   }
 
+  /** Opens a link in a new tab. Anything that is not http(s) is refused. */
+  function openLink(value) {
+    const url = String(value || '').trim();
+    if (!/^https?:\/\//i.test(url)) {
+      RM.toast('Write the full address, starting with http:// or https://, to open it.', 'error');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   /** "Product Owner" -> "PO", "Development" -> "Dev": initials for tight cells. */
   function shortName(name) {
     const words = String(name).split(/\s+/).filter(Boolean);
@@ -782,6 +792,11 @@
         const url = el('input', { class: 'input input-compact', type: 'url', placeholder: 'https://...', value: link.url || '' });
         linksHost.appendChild(el('div', 'link-row', [
           label, url,
+          el('button', {
+            class: 'icon-button', type: 'button', title: 'Open this link in a new tab',
+            // Reads the field as it is now, so a link just typed opens too.
+            onclick: function () { openLink(url.value); }
+          }, '↗'),
           el('button', {
             class: 'icon-button icon-danger', type: 'button', title: 'Remove link',
             onclick: function () {

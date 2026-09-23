@@ -816,7 +816,7 @@ button.mini-row:hover { border-color: var(--accent); background: var(--accent-so
 .table-tasks { min-width: 900px; }
 .table-tasks .task-cell { min-width: 210px; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.link-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.6fr) auto; gap: 6px; align-items: center; }
+.link-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.6fr) auto auto; gap: 6px; align-items: center; }
 
 /* ---------------------------------------------------------------- */
 /* Level 3: tasks on the roadmap                                     */

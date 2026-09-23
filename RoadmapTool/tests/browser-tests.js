@@ -23,10 +23,17 @@ function check(name, ok, detail) {
 }
 (async () => {
   const browser = await chromium.launch();
+  // The sample links point at example.com. Stub them so "open in a new tab"
+  // can be checked without the test needing the internet.
+  const context = await browser.newContext();
+  await context.route('**example.com/**', function (route) {
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>stub</h1>' });
+  });
   /** A cell of the panel ribbon, found by its label. */
   const ribbon = (page, label) => page.locator('.modal .ribbon-cell')
     .filter({ has: page.locator('.ribbon-label', { hasText: new RegExp('^' + label + '$') }) });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
   const errors = [];
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/40[39]|422/.test(m.text())) errors.push(m.text()); });
@@ -141,6 +148,15 @@ function check(name, ok, detail) {
   await page.waitForTimeout(200);
   await taskModal.locator('.link-row').nth(1).locator('input').nth(0).fill('Design doc');
   await taskModal.locator('.link-row').nth(1).locator('input').nth(1).fill('https://docs.example.com/design');
+  // A link can be opened from the editor, in a new tab, before it is saved.
+  const [linkTab] = await Promise.all([
+    page.context().waitForEvent('page'),
+    taskModal.locator('.link-row').first().locator('.icon-button').first().click()
+  ]);
+  check('a link opens in a new tab from the task editor',
+    /jira\.example\.com\/browse\/INT-999/.test(linkTab.url()), linkTab.url());
+  await linkTab.close();
+
   await taskModal.locator('.button-primary', { hasText: 'Save task' }).click();
   await page.waitForTimeout(1000);
   const task = await page.evaluate(() => {
