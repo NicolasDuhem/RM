@@ -25,6 +25,7 @@ window.RM = (function () {
       timescale: 'month',
       showMilestones: true,
       collapsed: {},
+      expandedItems: {},
       filters: emptyFilters(),
       editorName: ''
     }
@@ -33,7 +34,7 @@ window.RM = (function () {
   function emptyFilters() {
     return {
       programme: '', system: '', status: '', owner: '', productOwner: '',
-      priority: '', type: '', phase: '', dateFrom: '', dateTo: '', search: ''
+      priority: '', type: '', phase: '', stream: '', okr: '', dateFrom: '', dateTo: '', search: ''
     };
   }
   RM.emptyFilters = emptyFilters;
@@ -70,6 +71,7 @@ window.RM = (function () {
         timescale: ui.timescale,
         showMilestones: ui.showMilestones,
         collapsed: ui.collapsed,
+        expandedItems: ui.expandedItems,
         filters: ui.filters,
         editorName: ui.editorName
       }));
@@ -207,8 +209,120 @@ window.RM = (function () {
     return (option && option.colour) || fallback || '#64748b';
   }
 
+  function optionNames(name, ids) {
+    return (Array.isArray(ids) ? ids : (ids ? [ids] : [])).map(function (id) {
+      return optionName(name, id);
+    });
+  }
+
   RM.options = {
-    list: optionList, active: activeOptions, find: optionFor, name: optionName, colour: optionColour
+    list: optionList, active: activeOptions, find: optionFor, name: optionName,
+    names: optionNames, colour: optionColour
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* OKRs - two levels: objectives, each with its own key results      */
+  /* ---------------------------------------------------------------- */
+
+  RM.okrs = {
+    objectives: function () {
+      const list = RM.settings().okrs;
+      return Array.isArray(list) ? list : [];
+    },
+    /** Flat list for pickers: objectives and their key results, in order. */
+    flat: function () {
+      const out = [];
+      RM.okrs.objectives().forEach(function (objective) {
+        if (objective.active === false) return;
+        out.push({ id: objective.id, name: objective.name, level: 1, objective: objective.name });
+        (objective.children || []).forEach(function (keyResult) {
+          if (keyResult.active === false) return;
+          out.push({ id: keyResult.id, name: keyResult.name, level: 2, objective: objective.name });
+        });
+      });
+      return out;
+    },
+    find: function (id) {
+      let found = null;
+      RM.okrs.objectives().forEach(function (objective) {
+        if (objective.id === id) found = { id: id, name: objective.name, level: 1, objective: objective.name };
+        (objective.children || []).forEach(function (keyResult) {
+          if (keyResult.id === id) found = { id: id, name: keyResult.name, level: 2, objective: objective.name };
+        });
+      });
+      return found;
+    },
+    label: function (id) {
+      const found = RM.okrs.find(id);
+      if (!found) return id;
+      return found.level === 2 ? found.objective + ' / ' + found.name : found.name;
+    },
+    shortLabel: function (id) {
+      const found = RM.okrs.find(id);
+      return found ? found.name : id;
+    }
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* Effort - defined on tasks, rolled up to changes and programmes    */
+  /* ---------------------------------------------------------------- */
+
+  RM.effort = {
+    resourceTypes: function () { return activeOptions('resourceTypes'); },
+
+    /** Days per resource type for one task. */
+    ofTask: function (task) {
+      const days = (task && task.days) || {};
+      const out = {};
+      RM.effort.resourceTypes().forEach(function (type) {
+        out[type.id] = Number(days[type.id]) || 0;
+      });
+      return out;
+    },
+
+    /** Days per resource type for a system change, summed from its tasks. */
+    ofItem: function (item) {
+      const out = {};
+      RM.effort.resourceTypes().forEach(function (type) { out[type.id] = 0; });
+      ((item && item.tasks) || []).forEach(function (task) {
+        const days = RM.effort.ofTask(task);
+        Object.keys(out).forEach(function (typeId) { out[typeId] += days[typeId] || 0; });
+      });
+      return out;
+    },
+
+    /** Days per resource type for a programme, summed from its changes. */
+    ofProgramme: function (programmeId) {
+      const out = {};
+      RM.effort.resourceTypes().forEach(function (type) { out[type.id] = 0; });
+      RM.itemsForProgramme(programmeId).forEach(function (item) {
+        const days = RM.effort.ofItem(item);
+        Object.keys(out).forEach(function (typeId) { out[typeId] += days[typeId] || 0; });
+      });
+      return out;
+    },
+
+    /** Days held in one of the item's Fast MVP / Standard estimates. */
+    ofEstimate: function (item, mode) {
+      const estimate = ((item && item.estimates) || {})[mode] || {};
+      const days = estimate.days || {};
+      const out = {};
+      RM.effort.resourceTypes().forEach(function (type) { out[type.id] = Number(days[type.id]) || 0; });
+      return out;
+    },
+
+    total: function (days) {
+      return Object.keys(days || {}).reduce(function (sum, key) { return sum + (Number(days[key]) || 0); }, 0);
+    },
+
+    format: function (value) {
+      return String(Math.round((Number(value) || 0) * 10) / 10);
+    }
+  };
+
+  /** The stream a task belongs to: its own, or the one on its system change. */
+  RM.streamOf = function (item, task) {
+    return (task && task.stream) || (item && item.stream) || '';
   };
 
   RM.statusBadge = function (statusId) {
@@ -303,7 +417,8 @@ window.RM = (function () {
     },
     saveSettings: function (settings) {
       return request('POST', '/api/settings/save', {
-        revision: RM.revision('settings'), settings: settings, editor: RM.editorName()
+        revision: RM.revision('settings'), settings: settings, editor: RM.editorName(),
+        password: RM.settingsLock.password()
       });
     },
     audit: function (params) {
@@ -423,7 +538,7 @@ window.RM = (function () {
       if (event.target === overlay && config.dismissible !== false) close();
     });
     host.appendChild(overlay);
-    modalStack.push({ overlay: overlay, onClose: config.onClose });
+    modalStack.push({ overlay: overlay, onClose: config.onClose, dismissible: config.dismissible !== false });
     document.body.classList.add('modal-open');
 
     const focusable = dialog.querySelector('input, textarea, select, button.button-primary');
@@ -441,9 +556,11 @@ window.RM = (function () {
   };
 
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && modalStack.length) {
-      modalStack[modalStack.length - 1].overlay.querySelector('.icon-button').click();
-    }
+    // Escape never discards a panel that is holding unsaved edits.
+    if (event.key !== 'Escape' || !modalStack.length) return;
+    const top = modalStack[modalStack.length - 1];
+    if (!top.dismissible) return;
+    top.overlay.querySelector('.icon-button').click();
   });
 
   RM.confirm = function (config) {
@@ -602,6 +719,16 @@ window.RM = (function () {
           input.appendChild(el('option', { value: value }, String(value) + ' (not in settings)'));
           input.value = value;
         }
+      } else if (field.type === 'multiselect') {
+        const multi = RM.multiSelect({
+          values: Array.isArray(value) ? value : (value ? [value] : []),
+          options: field.options,
+          label: field.optionLabel || (field.list ? function (id) { return optionName(field.list, id); } : null),
+          placeholder: field.placeholder
+        });
+        input = multi.element;
+        input.dataset.multiselect = 'yes';
+        input.multiSelect = multi;
       } else if (field.type === 'checkbox') {
         input = el('input', { class: 'checkbox', type: 'checkbox', id: id });
         input.checked = !!value;
@@ -634,6 +761,7 @@ window.RM = (function () {
         const entry = inputs[name];
         let value;
         if (entry.field.type === 'checkbox') value = entry.input.checked;
+        else if (entry.field.type === 'multiselect') value = entry.input.multiSelect.read();
         else if (entry.field.type === 'number') value = entry.input.value === '' ? '' : Number(entry.input.value);
         else value = entry.input.value;
         set(out, name, value);
@@ -694,6 +822,119 @@ window.RM = (function () {
         return { value: option.id, label: option.name };
       });
     };
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* Multi-select                                                      */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * A compact multi-select: the chosen values show as chips, and a popover
+   * holds the checkboxes. The popover is positioned fixed so it is never
+   * clipped by a scrolling modal.
+   */
+  RM.multiSelect = function (config) {
+    let selected = (config.values || []).slice();
+    const chips = el('div', 'ms-chips');
+    const control = el('button', { class: 'input ms-control', type: 'button', onclick: open }, [
+      chips, el('span', 'ms-caret', '\u25be')
+    ]);
+    const wrapper = el('div', 'ms', control);
+    let panel = null;
+
+    draw();
+    return {
+      element: wrapper,
+      read: function () { return selected.slice(); },
+      set: function (values) { selected = (values || []).slice(); draw(); }
+    };
+
+    function draw() {
+      clear(chips);
+      if (!selected.length) {
+        chips.appendChild(el('span', 'ms-placeholder', config.placeholder || 'None selected'));
+        return;
+      }
+      selected.forEach(function (id) {
+        chips.appendChild(el('span', 'ms-chip', config.label ? config.label(id) : id));
+      });
+    }
+
+    function open(event) {
+      event.stopPropagation();
+      if (panel) return close();
+      const options = typeof config.options === 'function' ? config.options() : (config.options || []);
+      const box = control.getBoundingClientRect();
+      panel = el('div', {
+        class: 'ms-panel',
+        style: { left: Math.round(box.left) + 'px', top: Math.round(box.bottom + 4) + 'px', minWidth: Math.round(box.width) + 'px' }
+      }, options.length ? options.map(function (option) {
+        const input = el('input', { class: 'checkbox', type: 'checkbox' });
+        input.checked = selected.indexOf(option.value) >= 0;
+        input.addEventListener('change', function () {
+          if (input.checked) {
+            if (selected.indexOf(option.value) < 0) selected.push(option.value);
+          } else {
+            selected = selected.filter(function (id) { return id !== option.value; });
+          }
+          draw();
+          if (config.onChange) config.onChange(selected.slice());
+        });
+        return el('label', 'ms-option' + (option.level === 2 ? ' ms-option-child' : '') + (option.level === 1 ? ' ms-option-parent' : ''), [input, el('span', null, option.label)]);
+      }) : el('p', 'muted small', 'Nothing to choose from - add entries in Settings.'));
+
+      document.body.appendChild(panel);
+      const panelBox = panel.getBoundingClientRect();
+      if (panelBox.bottom > window.innerHeight - 10) {
+        panel.style.top = Math.max(10, Math.round(box.top - panelBox.height - 4)) + 'px';
+      }
+      window.setTimeout(function () { document.addEventListener('mousedown', onOutside); }, 0);
+    }
+
+    function onOutside(event) {
+      if (panel && (panel.contains(event.target) || control.contains(event.target))) return;
+      close();
+    }
+
+    function close() {
+      document.removeEventListener('mousedown', onOutside);
+      if (panel) { panel.remove(); panel = null; }
+    }
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* Settings password                                                 */
+  /* ---------------------------------------------------------------- */
+
+  const UNLOCK_KEY = 'roadmapTool.settingsUnlocked';
+
+  RM.settingsLock = {
+    /** Unlocking lasts for this browser tab only - never remembered on disk. */
+    isUnlocked: function () {
+      try { return window.sessionStorage.getItem(UNLOCK_KEY) === 'yes'; } catch (err) { return false; }
+    },
+    password: function () {
+      try { return window.sessionStorage.getItem(UNLOCK_KEY + '.value') || ''; } catch (err) { return ''; }
+    },
+    remember: function (password) {
+      try {
+        window.sessionStorage.setItem(UNLOCK_KEY, 'yes');
+        window.sessionStorage.setItem(UNLOCK_KEY + '.value', password);
+      } catch (err) { /* private browsing - the password is asked for again */ }
+    },
+    forget: function () {
+      try {
+        window.sessionStorage.removeItem(UNLOCK_KEY);
+        window.sessionStorage.removeItem(UNLOCK_KEY + '.value');
+      } catch (err) { /* nothing to forget */ }
+    },
+    /** Asks the server, so the password is not simply compared in the page. */
+    unlock: function (password) {
+      return RM.api.post('/api/settings/unlock', { password: password }).then(function (response) {
+        if (response.ok) RM.settingsLock.remember(password);
+        return response;
+      });
+    }
   };
 
   /* ---------------------------------------------------------------- */
@@ -765,7 +1006,7 @@ window.RM = (function () {
     });
     // Child ids are unique across the whole roadmap, not just within one item.
     RM.records('roadmapItems').forEach(function (item) {
-      ['milestones', 'risks', 'gates', 'tickets'].forEach(function (collection) {
+      ['milestones', 'risks', 'gates', 'tasks'].forEach(function (collection) {
         (item[collection] || []).forEach(function (child) {
           const match = pattern.exec(String(child.id || ''));
           if (match) max = Math.max(max, parseInt(match[1], 10));
@@ -787,10 +1028,12 @@ window.RM = (function () {
   RM.matchesFilters = function (item) {
     const filters = RM.state.ui.filters;
     if (filters.programme && item.programmeId !== filters.programme) return false;
-    if (filters.system && item.systemArea !== filters.system) return false;
+    if (filters.system && (item.systemAreas || []).indexOf(filters.system) < 0) return false;
     if (filters.status && item.status !== filters.status) return false;
     if (filters.priority && item.priority !== filters.priority) return false;
-    if (filters.type && item.type !== filters.type) return false;
+    if (filters.type && (item.types || []).indexOf(filters.type) < 0) return false;
+    if (filters.stream && !itemUsesStream(item, filters.stream)) return false;
+    if (filters.okr && !itemUsesOkr(item, filters.okr)) return false;
     if (filters.phase && item.currentPhase !== filters.phase) return false;
     if (filters.productOwner && item.productOwner !== filters.productOwner) return false;
     if (filters.owner) {
@@ -803,14 +1046,25 @@ window.RM = (function () {
     return true;
   };
 
+  function itemUsesStream(item, streamId) {
+    if (item.stream === streamId) return true;
+    return (item.tasks || []).some(function (task) { return RM.streamOf(item, task) === streamId; });
+  }
+
+  function itemUsesOkr(item, okrId) {
+    return (item.tasks || []).some(function (task) { return (task.okrIds || []).indexOf(okrId) >= 0; });
+  }
+
   function matchesSearch(item, term) {
     const needle = term.toLowerCase();
     const programme = RM.programmeById(item.programmeId);
     const haystack = [
-      item.title, item.shortTitle, item.description, item.businessOutcome, item.scope,
+      item.title, item.shortTitle, item.description, item.businessOutcome,
       item.notes, item.comments, item.owner, item.businessOwner, item.productOwner,
       item.technicalOwner, item.deliveryOwner, item.subArea,
-      RM.options.name('systems', item.systemArea),
+      RM.options.names('systems', item.systemAreas).join(' '),
+      RM.options.name('resourceStreams', item.stream),
+      (item.tasks || []).map(function (task) { return task.name + ' ' + (task.owner || '') + ' ' + (task.description || ''); }).join(' '),
       programme ? programme.name : '', programme ? programme.description : ''
     ].join(' ').toLowerCase();
     return haystack.indexOf(needle) >= 0;
@@ -913,6 +1167,7 @@ window.RM = (function () {
     const prefs = loadPrefs();
     const ui = RM.state.ui;
     if (prefs.collapsed) ui.collapsed = prefs.collapsed;
+    if (prefs.expandedItems) ui.expandedItems = prefs.expandedItems;
     if (prefs.filters) ui.filters = Object.assign(emptyFilters(), prefs.filters);
     if (prefs.editorName) ui.editorName = prefs.editorName;
     if (prefs.roadmapMode) ui.roadmapMode = prefs.roadmapMode;

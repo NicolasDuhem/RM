@@ -9,6 +9,7 @@
   const CSV_DATASETS = [
     { id: 'programmes', label: 'Programmes' },
     { id: 'roadmapItems', label: 'Roadmap items' },
+    { id: 'tasks', label: 'Tasks', exportOnly: true },
     { id: 'dependencies', label: 'Dependencies' },
     { id: 'backlog', label: 'Backlog' }
   ];
@@ -141,7 +142,7 @@
 
   function importCsvControl() {
     const datasetSelect = el('select', 'input select select-compact');
-    CSV_DATASETS.forEach(function (dataset) {
+    CSV_DATASETS.filter(function (dataset) { return !dataset.exportOnly; }).forEach(function (dataset) {
       datasetSelect.appendChild(el('option', { value: dataset.id }, dataset.label));
     });
     const modeSelect = el('select', 'input select select-compact');
@@ -296,17 +297,84 @@
     { name: 'priorities', label: 'Priorities', colour: true },
     { name: 'milestoneTypes', label: 'Milestone types', colour: false },
     { name: 'dependencyTypes', label: 'Dependency types', colour: false },
-    { name: 'resourceTypes', label: 'Resource types', colour: false }
+    {
+      name: 'resourceTypes', label: 'Resource types (level 1)', colour: false,
+      description: 'The disciplines capacity and effort are counted in, such as Product Owner, Development, Integration and Data Engineering.'
+    },
+    {
+      name: 'resourceStreams', label: 'Resource streams (level 2)', colour: false,
+      description: 'The streams each discipline is split into, such as B2B, D2C, NetSuite or CSI. Capacity is planned per stream, per discipline, per month.'
+    }
   ];
 
   function renderSettings(root) {
+    if (!RM.settingsLock.isUnlocked()) {
+      root.appendChild(passwordGate(root));
+      return;
+    }
+    renderSettingsForm(root);
+  }
+
+  /**
+   * The Settings screen is password protected so the shared lists are not
+   * changed by accident. It is a speed bump, not a login: the application
+   * still has no user accounts.
+   */
+  function passwordGate(root) {
+    const input = el('input', { class: 'input', type: 'password', placeholder: 'Settings password' });
+    const message = el('p', 'field-error');
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') { event.preventDefault(); attempt(); }
+    });
+
+    const panel = el('section', 'panel panel-narrow', [
+      el('h2', 'panel-title', 'Settings are password protected'),
+      el('p', 'panel-description',
+        'Settings change the lists the whole roadmap uses - statuses, systems, streams, OKRs and more. Enter the settings password to continue.'),
+      el('div', 'panel-body stack', [
+        el('label', 'field', [el('span', 'field-label', 'Password'), input]),
+        message,
+        el('div', 'button-row', [RM.button('Unlock settings', attempt, 'primary')])
+      ])
+    ]);
+    window.setTimeout(function () { input.focus(); }, 30);
+    return panel;
+
+    function attempt() {
+      const value = input.value;
+      message.textContent = '';
+      RM.settingsLock.unlock(value).then(function (response) {
+        if (!response.ok) {
+          message.textContent = 'That password is not correct.';
+          input.select();
+          return;
+        }
+        RM.clear(root);
+        root.appendChild(RM.pageHeader('Settings',
+          'Everything the roadmap uses as a list lives here. Nothing needs a code change.'));
+        renderSettingsForm(root, true);
+      }).catch(function (err) {
+        message.textContent = (err && err.message) || 'The password could not be checked.';
+      });
+    }
+  }
+
+  function renderSettingsForm(root, skipHeader) {
     const draft = JSON.parse(JSON.stringify(RM.settings()));
 
-    root.appendChild(RM.pageHeader(
-      'Settings',
-      'Everything the roadmap uses as a list lives here. Nothing needs a code change.',
-      [RM.button('Save settings', save, 'primary')]
-    ));
+    if (!skipHeader) {
+      root.appendChild(RM.pageHeader(
+        'Settings',
+        'Everything the roadmap uses as a list lives here. Nothing needs a code change.',
+        [
+          RM.button('Lock settings', function () {
+            RM.settingsLock.forget();
+            RM.renderView();
+          }),
+          RM.button('Save settings', save, 'primary')
+        ]
+      ));
+    }
 
     const general = RM.form([
       { name: 'appName', label: 'Application name' },
@@ -329,7 +397,15 @@
       { name: 'showMilestones', label: 'Show milestones by default', type: 'checkbox' },
       { name: 'showTodayLine', label: 'Show the TODAY line', type: 'checkbox' },
       { name: 'backupsToKeep', label: 'Backups to keep per file', type: 'number', min: 1, max: 500 },
-      { name: 'auditEntriesToKeep', label: 'History entries to keep', type: 'number', min: 100, max: 50000 }
+      { name: 'auditEntriesToKeep', label: 'History entries to keep', type: 'number', min: 100, max: 50000 },
+      {
+        name: 'workingDaysPerMonth', label: 'Working days per month', type: 'number', min: 1, max: 31, step: '0.5',
+        hint: 'Used to turn FTE capacity into days on the Resources screen.'
+      },
+      {
+        name: 'settingsPassword', label: 'Settings password', type: 'text',
+        hint: 'Needed to open this screen. Leave empty to remove the prompt. This is not a login.'
+      }
     ], draft);
 
     root.appendChild(el('section', 'panel', [
@@ -341,6 +417,7 @@
       root.appendChild(listEditor(definition, draft));
     });
 
+    root.appendChild(okrEditor(draft));
     root.appendChild(quarterEditor(draft));
 
     root.appendChild(el('div', 'sticky-actions', [
@@ -366,7 +443,8 @@
     const body = el('div', 'panel-body');
     const section = el('section', 'panel', [
       el('h2', 'panel-title', definition.label),
-      el('p', 'panel-description', 'Records keep their stored value if you rename an entry. Deactivate an entry to hide it from new records without changing history.'),
+      el('p', 'panel-description', definition.description ||
+        'Records keep their stored value if you rename an entry. Deactivate an entry to hide it from new records without changing history.'),
       body
     ]);
     draw();
@@ -447,6 +525,159 @@
         });
       }
     }
+  }
+
+  /** OKRs have two levels: objectives, each with its own key results. */
+  function okrEditor(draft) {
+    if (!Array.isArray(draft.okrs)) draft.okrs = [];
+    const body = el('div', 'panel-body');
+    const section = el('section', 'panel', [
+      el('h2', 'panel-title', 'OKRs'),
+      el('p', 'panel-description', 'Objectives with their key results underneath. Tasks are linked to one or more of either level.'),
+      body
+    ]);
+    draw();
+    return section;
+
+    function draw() {
+      RM.clear(body);
+      draft.okrs.forEach(function (objective, index) {
+        if (!Array.isArray(objective.children)) objective.children = [];
+        const nameInput = el('input', { class: 'input', type: 'text', value: objective.name });
+        nameInput.addEventListener('change', function () { objective.name = nameInput.value.trim() || objective.name; });
+
+        const activeBox = el('input', { class: 'checkbox', type: 'checkbox' });
+        activeBox.checked = objective.active !== false;
+        activeBox.addEventListener('change', function () { objective.active = activeBox.checked; });
+
+        const children = el('div', 'okr-children', objective.children.map(function (keyResult, childIndex) {
+          const childInput = el('input', { class: 'input input-compact', type: 'text', value: keyResult.name });
+          childInput.addEventListener('change', function () { keyResult.name = childInput.value.trim() || keyResult.name; });
+
+          const childActive = el('input', { class: 'checkbox', type: 'checkbox' });
+          childActive.checked = keyResult.active !== false;
+          childActive.addEventListener('change', function () { keyResult.active = childActive.checked; });
+
+          return el('div', 'option-row option-row-child', [
+            el('span', 'mono small option-id', keyResult.id),
+            childInput,
+            el('label', 'toggle', [childActive, el('span', null, 'Active')]),
+            el('span', 'option-actions', [
+              el('button', { class: 'icon-button', type: 'button', title: 'Move up', disabled: childIndex === 0, onclick: function () { moveChild(objective, childIndex, -1); } }, '\u2191'),
+              el('button', { class: 'icon-button', type: 'button', title: 'Move down', disabled: childIndex === objective.children.length - 1, onclick: function () { moveChild(objective, childIndex, 1); } }, '\u2193'),
+              el('button', { class: 'icon-button icon-danger', type: 'button', title: 'Remove key result', onclick: function () { removeChild(objective, childIndex, keyResult); } }, '\u00d7')
+            ])
+          ]);
+        }));
+
+        const newChild = el('input', { class: 'input input-compact', type: 'text', placeholder: 'Add a key result' });
+        newChild.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter') { event.preventDefault(); addChild(objective, newChild); }
+        });
+
+        body.appendChild(el('div', 'okr-objective', [
+          el('div', 'option-row option-row-parent', [
+            el('span', 'mono small option-id', objective.id),
+            nameInput,
+            el('label', 'toggle', [activeBox, el('span', null, 'Active')]),
+            el('span', 'option-actions', [
+              el('button', { class: 'icon-button', type: 'button', title: 'Move up', disabled: index === 0, onclick: function () { move(index, -1); } }, '\u2191'),
+              el('button', { class: 'icon-button', type: 'button', title: 'Move down', disabled: index === draft.okrs.length - 1, onclick: function () { move(index, 1); } }, '\u2193'),
+              el('button', { class: 'icon-button icon-danger', type: 'button', title: 'Remove objective', onclick: function () { removeObjective(index, objective); } }, '\u00d7')
+            ])
+          ]),
+          children,
+          el('div', 'option-add option-add-child', [newChild, RM.button('Add key result', function () { addChild(objective, newChild); })])
+        ]));
+      });
+
+      const newObjective = el('input', { class: 'input', type: 'text', placeholder: 'Add an objective' });
+      newObjective.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); addObjective(newObjective); }
+      });
+      body.appendChild(el('div', 'option-add', [newObjective, RM.button('Add objective', function () { addObjective(newObjective); })]));
+    }
+
+    function usedIds() {
+      const ids = new Set();
+      draft.okrs.forEach(function (objective) {
+        ids.add(objective.id);
+        (objective.children || []).forEach(function (child) { ids.add(child.id); });
+      });
+      return ids;
+    }
+
+    function makeId(name, prefix) {
+      const base = prefix + slugify(name);
+      const taken = usedIds();
+      let candidate = base;
+      let counter = 2;
+      while (taken.has(candidate)) { candidate = base + '-' + counter; counter += 1; }
+      return candidate;
+    }
+
+    function addObjective(input) {
+      const name = input.value.trim();
+      if (!name) return;
+      draft.okrs.push({ id: makeId(name, 'okr-'), name: name, active: true, children: [] });
+      input.value = '';
+      draw();
+    }
+
+    function addChild(objective, input) {
+      const name = input.value.trim();
+      if (!name) return;
+      objective.children.push({ id: makeId(name, 'kr-'), name: name, active: true });
+      input.value = '';
+      draw();
+    }
+
+    function move(index, direction) {
+      const target = index + direction;
+      if (target < 0 || target >= draft.okrs.length) return;
+      const moved = draft.okrs.splice(index, 1)[0];
+      draft.okrs.splice(target, 0, moved);
+      draw();
+    }
+
+    function moveChild(objective, index, direction) {
+      const target = index + direction;
+      if (target < 0 || target >= objective.children.length) return;
+      const moved = objective.children.splice(index, 1)[0];
+      objective.children.splice(target, 0, moved);
+      draw();
+    }
+
+    function removeObjective(index, objective) {
+      RM.confirm({
+        title: 'Remove objective',
+        message: 'Remove "' + objective.name + '" and its ' + (objective.children || []).length + ' key result(s)?',
+        detail: 'Tasks already linked to them keep the link, which will then show as an unknown OKR.',
+        confirmLabel: 'Remove',
+        danger: true
+      }).then(function (ok) {
+        if (!ok) return;
+        draft.okrs.splice(index, 1);
+        draw();
+      });
+    }
+
+    function removeChild(objective, index, keyResult) {
+      RM.confirm({
+        title: 'Remove key result',
+        message: 'Remove "' + keyResult.name + '"?',
+        confirmLabel: 'Remove',
+        danger: true
+      }).then(function (ok) {
+        if (!ok) return;
+        objective.children.splice(index, 1);
+        draw();
+      });
+    }
+  }
+
+  function slugify(value) {
+    return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || 'item';
   }
 
   function quarterEditor(draft) {

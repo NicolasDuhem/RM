@@ -116,9 +116,14 @@ function validateRoadmapItem(input, context) {
     errors.push({ field: 'programmeId', message: 'Programme ' + record.programmeId + ' does not exist.' });
   }
 
-  record.systemArea = trimmed(record.systemArea);
+  // Systems and types are multi-select. Records written by an older version
+  // carried a single value, so those are folded into the list on first save.
+  record.systemAreas = idList(record.systemAreas, record.systemArea);
+  record.types = idList(record.types, record.type);
+  delete record.systemArea;
+  delete record.type;
   record.subArea = trimmed(record.subArea);
-  record.type = trimmed(record.type);
+  record.stream = trimmed(record.stream);
   record.status = trimmed(record.status);
   record.priority = trimmed(record.priority);
   record.currentPhase = trimmed(record.currentPhase);
@@ -131,11 +136,13 @@ function validateRoadmapItem(input, context) {
     errors.push({ field: 'endDate', message: 'End date must be the same as, or after, the start date.' });
   }
 
-  ['description', 'businessOutcome', 'problemStatement', 'scope', 'outOfScope', 'assumptions',
+  ['description', 'businessOutcome', 'problemStatement',
     'systemDependencies', 'businessDependencies', 'dataDependencies', 'recommendedApproach',
     'tradeOffs', 'pocNotes', 'comments', 'notes'].forEach(function (field) {
     record[field] = str(record[field]);
   });
+  // The scope section was removed from the tool; drop it from stored records.
+  ['scope', 'outOfScope', 'assumptions'].forEach(function (field) { delete record[field]; });
 
   ['businessOwner', 'productOwner', 'technicalOwner', 'deliveryOwner', 'owner'].forEach(function (field) {
     record[field] = trimmed(record[field]);
@@ -146,7 +153,10 @@ function validateRoadmapItem(input, context) {
   record.milestones = validateChildList(errors, record.milestones, 'milestones', validateMilestone);
   record.risks = validateChildList(errors, record.risks, 'risks', validateRisk);
   record.gates = validateChildList(errors, record.gates, 'gates', validateGate);
-  record.tickets = validateChildList(errors, record.tickets, 'tickets', validateTicket);
+  record.tasks = validateChildList(errors, tasksOf(record), 'tasks', function (child, errs, field) {
+    return validateTask(child, errs, field, record.id);
+  });
+  delete record.tickets;
   record.estimates = validateEstimates(record.estimates);
 
   checkUniqueId(errors, record.id, ctx);
@@ -210,20 +220,72 @@ function validateGate(child, errors, field) {
   return out;
 }
 
-function validateTicket(child, errors, field) {
+/**
+ * Tasks are level 3 of the roadmap: the work under a system change. Effort is
+ * captured here and rolls up to the system change and then to the programme.
+ */
+function validateTask(child, errors, field, roadmapItemId) {
   const out = {
     id: trimmed(child.id),
-    roadmapItemId: trimmed(child.roadmapItemId),
-    title: trimmed(child.title),
+    roadmapItemId: trimmed(child.roadmapItemId) || trimmed(roadmapItemId),
+    name: trimmed(child.name) || trimmed(child.title),
     description: str(child.description),
-    system: trimmed(child.system),
     status: trimmed(child.status),
     owner: trimmed(child.owner),
-    acceptanceCriteria: str(child.acceptanceCriteria),
-    notes: str(child.notes),
-    externalReference: trimmed(child.externalReference)
+    stream: trimmed(child.stream),
+    okrIds: idList(child.okrIds, ''),
+    links: cleanLinks(errors, child.links, field, child.externalReference),
+    days: cleanDays(child.days),
+    notes: str(child.notes)
   };
-  if (!out.title) errors.push({ field: field, message: 'Every ticket needs a title.' });
+  if (!out.name) errors.push({ field: field, message: 'Every task needs a name.' });
+  return out;
+}
+
+/** Accepts an older version's tickets as tasks so nothing is lost on upgrade. */
+function tasksOf(record) {
+  if (Array.isArray(record.tasks) && record.tasks.length) return record.tasks;
+  if (Array.isArray(record.tickets) && record.tickets.length) return record.tickets;
+  return Array.isArray(record.tasks) ? record.tasks : [];
+}
+
+function cleanLinks(errors, value, field, legacyReference) {
+  const source = Array.isArray(value) ? value.slice() : [];
+  if (!source.length && trimmed(legacyReference)) {
+    source.push({ label: trimmed(legacyReference), url: trimmed(legacyReference) });
+  }
+  return source.map(function (entry) {
+    const raw = (entry && typeof entry === 'object') ? entry : { url: entry };
+    const url = trimmed(raw.url);
+    const label = trimmed(raw.label) || url;
+    return { label: label, url: url };
+  }).filter(function (entry) { return entry.label || entry.url; });
+}
+
+function cleanDays(value) {
+  const src = (value && typeof value === 'object') ? value : {};
+  const days = {};
+  Object.keys(src).forEach(function (key) {
+    const amount = num(src[key], 0);
+    days[key] = amount < 0 ? 0 : amount;
+  });
+  return days;
+}
+
+/** Normalises a multi-select value, tolerating a single legacy string. */
+function idList(value, legacySingle) {
+  const source = Array.isArray(value) ? value : (value ? [value] : []);
+  const list = source.slice();
+  const single = trimmed(legacySingle);
+  if (!list.length && single) list.push(single);
+  const seen = new Set();
+  const out = [];
+  list.forEach(function (entry) {
+    const id = trimmed(entry);
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    out.push(id);
+  });
   return out;
 }
 
@@ -337,28 +399,84 @@ function validateResourceScenario(input, context) {
   record.description = str(record.description);
   record.active = bool(record.active);
 
-  const resources = {};
-  const src = (record.resources && typeof record.resources === 'object') ? record.resources : {};
-  Object.keys(src).forEach(function (key) {
-    const value = num(src[key], 0);
-    if (value < 0) {
-      errors.push({ field: 'resources', message: 'Capacity cannot be negative.' });
-      return;
-    }
-    resources[key] = value;
-  });
-  record.resources = resources;
+  // Capacity is planned per stream, per resource type, per month:
+  //   allocations[streamId][resourceTypeId]["2026-10"] = 1.5 (FTE)
+  record.allocations = cleanAllocations(errors, record.allocations, record.resources);
+  delete record.resources;
 
   checkUniqueId(errors, record.id, ctx);
   stamp(record, ctx.existing, ctx.editor);
   return result(errors, record);
 }
 
+/**
+ * Cleans the monthly capacity grid. A scenario written by an older version
+ * carried one figure per resource type with no stream or month; that is kept
+ * as an "unassigned stream" baseline rather than thrown away.
+ */
+function cleanAllocations(errors, value, legacyResources) {
+  const out = {};
+  const source = (value && typeof value === 'object') ? value : {};
+
+  Object.keys(source).forEach(function (streamId) {
+    const stream = (source[streamId] && typeof source[streamId] === 'object') ? source[streamId] : {};
+    const cleanedStream = {};
+    Object.keys(stream).forEach(function (typeId) {
+      const months = (stream[typeId] && typeof stream[typeId] === 'object') ? stream[typeId] : {};
+      const cleanedMonths = {};
+      Object.keys(months).forEach(function (month) {
+        if (!/^\d{4}-\d{2}$/.test(month)) {
+          errors.push({ field: 'allocations', message: 'Month "' + month + '" must be written as YYYY-MM.' });
+          return;
+        }
+        const amount = num(months[month], 0);
+        if (amount < 0) {
+          errors.push({ field: 'allocations', message: 'Capacity cannot be negative (' + month + ').' });
+          return;
+        }
+        if (amount === 0) return; // an empty cell is simply not stored
+        cleanedMonths[month] = amount;
+      });
+      if (Object.keys(cleanedMonths).length) cleanedStream[trimmed(typeId)] = cleanedMonths;
+    });
+    if (Object.keys(cleanedStream).length) out[trimmed(streamId)] = cleanedStream;
+  });
+
+  if (!Object.keys(out).length && legacyResources && typeof legacyResources === 'object') {
+    const months = upcomingMonths(24);
+    const baseline = {};
+    Object.keys(legacyResources).forEach(function (typeId) {
+      const amount = num(legacyResources[typeId], 0);
+      if (amount <= 0) return;
+      const monthly = {};
+      months.forEach(function (month) { monthly[month] = amount; });
+      baseline[trimmed(typeId)] = monthly;
+    });
+    if (Object.keys(baseline).length) out.unassigned = baseline;
+  }
+  return out;
+}
+
+/** The current month and the following ones, as YYYY-MM. */
+function upcomingMonths(count) {
+  const now = new Date();
+  let year = now.getFullYear();
+  let month = now.getMonth() + 1;
+  const out = [];
+  for (let i = 0; i < count; i += 1) {
+    out.push(year + '-' + String(month).padStart(2, '0'));
+    month += 1;
+    if (month > 12) { month = 1; year += 1; }
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /* Settings                                                            */
 /* ------------------------------------------------------------------ */
 
-const OPTION_LISTS = ['systems', 'itemTypes', 'statuses', 'priorities', 'milestoneTypes', 'dependencyTypes', 'resourceTypes'];
+const OPTION_LISTS = ['systems', 'itemTypes', 'statuses', 'priorities', 'milestoneTypes',
+  'dependencyTypes', 'resourceTypes', 'resourceStreams'];
 
 function validateSettings(input, context) {
   const errors = [];
@@ -388,13 +506,49 @@ function validateSettings(input, context) {
   record.showTodayLine = bool(record.showTodayLine);
   record.backupsToKeep = Math.max(1, Math.min(500, Math.round(num(record.backupsToKeep, 50))));
   record.auditEntriesToKeep = Math.max(100, Math.min(50000, Math.round(num(record.auditEntriesToKeep, 5000))));
+  record.workingDaysPerMonth = Math.max(1, Math.min(31, num(record.workingDaysPerMonth, 21)));
+  record.settingsPassword = str(record.settingsPassword);
 
   OPTION_LISTS.forEach(function (listName) {
     record[listName] = cleanOptionList(errors, record[listName], listName);
   });
 
   record.quarters = cleanQuarters(errors, record.quarters);
+  record.okrs = cleanOkrs(errors, record.okrs);
   return result(errors, record);
+}
+
+/** OKRs have two levels: objectives, each with its own key results. */
+function cleanOkrs(errors, value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const out = [];
+  value.forEach(function (entry) {
+    const src = (entry && typeof entry === 'object') ? entry : { name: entry };
+    const name = trimmed(src.name);
+    if (!name) return;
+    const id = trimmed(src.id) || slugify(name);
+    if (seen.has(id)) {
+      errors.push({ field: 'okrs', message: 'Duplicate objective "' + name + '".' });
+      return;
+    }
+    seen.add(id);
+    const children = [];
+    (Array.isArray(src.children) ? src.children : []).forEach(function (child) {
+      const childSrc = (child && typeof child === 'object') ? child : { name: child };
+      const childName = trimmed(childSrc.name);
+      if (!childName) return;
+      const childId = trimmed(childSrc.id) || slugify(childName);
+      if (seen.has(childId)) {
+        errors.push({ field: 'okrs', message: 'Duplicate key result "' + childName + '".' });
+        return;
+      }
+      seen.add(childId);
+      children.push({ id: childId, name: childName, active: childSrc.active === undefined ? true : bool(childSrc.active) });
+    });
+    out.push({ id: id, name: name, active: src.active === undefined ? true : bool(src.active), children: children });
+  });
+  return out;
 }
 
 function cleanOptionList(errors, value, listName) {

@@ -1,55 +1,108 @@
 'use strict';
 
 /**
- * Resources: spreads each item's estimated effort across the months it runs
- * in, and compares the total with the capacity of the selected scenario.
+ * Resources.
  *
- * This is decision support only - it never moves a date by itself.
+ *  - Capacity plan: how much resource exists, per stream, per discipline,
+ *    per month. This is the scenario.
+ *  - Demand vs capacity: the effort recorded on tasks, spread evenly across
+ *    the dates of the system change it belongs to, compared with that plan.
+ *
+ * It is decision support only: it never moves a date by itself.
  */
 (function (RM) {
   const el = RM.el;
-  const WORKING_DAYS_PER_MONTH = 21;
-  const state = { scenarioId: '', mode: 'standard' };
+
+  const state = {
+    tab: 'capacity',
+    scenarioId: '',
+    source: 'tasks',
+    months: 12,
+    from: ''
+  };
+
+  function workingDays() {
+    const value = Number(RM.settings().workingDaysPerMonth);
+    return Number.isFinite(value) && value > 0 ? value : 21;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Month helpers                                                     */
+  /* ---------------------------------------------------------------- */
+
+  function monthKey(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+  }
+
+  function monthLabel(key) {
+    const parts = String(key).split('-');
+    const index = Number(parts[1]) - 1;
+    return (RM.dates.MONTHS[index] || parts[1]) + ' ' + parts[0];
+  }
+
+  function shiftMonth(key, steps) {
+    const parts = String(key).split('-');
+    let year = Number(parts[0]);
+    let month = Number(parts[1]) + steps;
+    while (month > 12) { month -= 12; year += 1; }
+    while (month < 1) { month += 12; year -= 1; }
+    return year + '-' + String(month).padStart(2, '0');
+  }
+
+  function monthWindow() {
+    const start = state.from || monthKey(new Date());
+    const out = [];
+    for (let i = 0; i < state.months; i += 1) out.push(shiftMonth(start, i));
+    return out;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Page                                                              */
+  /* ---------------------------------------------------------------- */
 
   function render(root) {
     const scenarios = RM.records('resourceScenarios');
-    if (!state.scenarioId) {
+    if (!state.scenarioId || !scenarios.some(function (s) { return s.id === state.scenarioId; })) {
       const active = scenarios.find(function (s) { return s.active; }) || scenarios[0];
       state.scenarioId = active ? active.id : '';
     }
+    if (!state.from) state.from = monthKey(new Date());
     const scenario = scenarios.find(function (s) { return s.id === state.scenarioId; }) || null;
-    const resourceTypes = RM.options.active('resourceTypes');
 
     root.appendChild(RM.pageHeader(
       'Resources',
-      'Estimated demand per month against the capacity of a scenario.',
+      'Capacity is planned per stream and discipline, month by month. Demand comes from the effort on tasks.',
       [RM.button('+ New Scenario', function () { openScenarioForm(null); }, 'primary')]
     ));
 
     root.appendChild(el('div', 'toolbar', [
+      el('div', 'segmented', [
+        segment('Capacity plan', state.tab === 'capacity', function () { state.tab = 'capacity'; RM.renderView(); }),
+        segment('Demand vs capacity', state.tab === 'demand', function () { state.tab = 'demand'; RM.renderView(); })
+      ]),
       el('label', 'toolbar-field', [
         el('span', null, 'Scenario'),
         (function () {
           const select = el('select', 'input select');
-          scenarios.forEach(function (s) { select.appendChild(el('option', { value: s.id }, s.name)); });
+          scenarios.forEach(function (s) {
+            select.appendChild(el('option', { value: s.id }, s.name + (s.active ? ' (default)' : '')));
+          });
           if (!scenarios.length) select.appendChild(el('option', { value: '' }, 'No scenarios yet'));
           select.value = state.scenarioId;
           select.addEventListener('change', function () { state.scenarioId = select.value; RM.renderView(); });
           return select;
         }())
       ]),
-      el('div', 'segmented', [
-        segment('Fast MVP', state.mode === 'fast'),
-        segment('Standard', state.mode === 'standard')
-      ]),
       el('div', 'toolbar-spacer'),
-      scenario ? RM.button('Edit scenario', function () { openScenarioForm(scenario); }) : null,
-      scenario ? RM.button('Delete scenario', function () { removeScenario(scenario); }, 'danger-quiet') : null
+      monthNavigation(),
+      scenario ? RM.button('Rename / describe', function () { openScenarioForm(scenario); }) : null,
+      scenario ? RM.button('Duplicate', function () { duplicateScenario(scenario); }) : null,
+      scenario ? RM.button('Delete', function () { removeScenario(scenario); }, 'danger-quiet') : null
     ]));
 
     if (!scenario) {
       root.appendChild(RM.emptyState('No resource scenarios yet',
-        'Create a scenario describing the capacity you have (for example Development 1.5 FTE, Integration 0.5 FTE).',
+        'A scenario is a monthly plan of how much resource each stream has, for each discipline.',
         RM.button('+ New Scenario', function () { openScenarioForm(null); }, 'primary')));
       return;
     }
@@ -59,76 +112,254 @@
         el('h3', null, scenario.name),
         scenario.description ? el('p', 'muted', scenario.description) : null
       ]),
-      el('div', 'scenario-capacity', resourceTypes.map(function (type) {
-        return el('div', 'capacity-chip', [
-          el('span', 'capacity-value', formatNumber(Number(scenario.resources[type.id]) || 0)),
-          el('span', 'capacity-label', type.name + ' FTE')
-        ]);
-      }))
+      el('div', 'scenario-capacity', summaryChips(scenario))
     ]));
 
-    const demand = buildDemand(resourceTypes);
-    if (demand.months.length === 0) {
-      root.appendChild(RM.emptyState('Nothing to plan yet',
-        'Add start and end dates plus effort estimates to roadmap items to see demand here.'));
-      return;
+    root.appendChild(state.tab === 'capacity' ? capacityPlan(scenario) : demandView(scenario));
+
+    function segment(label, active, onClick) {
+      return el('button', { class: 'segment' + (active ? ' segment-active' : ''), type: 'button', onclick: onClick }, label);
+    }
+  }
+
+  function monthNavigation() {
+    return el('div', 'month-nav', [
+      el('button', { class: 'icon-button', type: 'button', title: 'Earlier months', onclick: function () {
+        state.from = shiftMonth(state.from, -3);
+        RM.renderView();
+      } }, '‹'),
+      el('span', 'month-nav-label', monthLabel(state.from) + ' → ' + monthLabel(shiftMonth(state.from, state.months - 1))),
+      el('button', { class: 'icon-button', type: 'button', title: 'Later months', onclick: function () {
+        state.from = shiftMonth(state.from, 3);
+        RM.renderView();
+      } }, '›'),
+      (function () {
+        const select = el('select', 'input select select-compact');
+        [6, 12, 18, 24].forEach(function (count) {
+          select.appendChild(el('option', { value: String(count) }, count + ' months'));
+        });
+        select.value = String(state.months);
+        select.addEventListener('change', function () { state.months = Number(select.value); RM.renderView(); });
+        return select;
+      }()),
+      RM.button('Today', function () { state.from = monthKey(new Date()); RM.renderView(); })
+    ]);
+  }
+
+  function summaryChips(scenario) {
+    const months = monthWindow();
+    return RM.effort.resourceTypes().map(function (type) {
+      let total = 0;
+      streams().forEach(function (stream) {
+        months.forEach(function (month) { total += capacityFte(scenario, stream.id, type.id, month); });
+      });
+      const average = months.length ? total / months.length : 0;
+      return el('div', 'capacity-chip', [
+        el('span', 'capacity-value', RM.effort.format(average)),
+        el('span', 'capacity-label', type.name + ' FTE avg')
+      ]);
+    });
+  }
+
+  function streams() {
+    const list = RM.options.active('resourceStreams').slice();
+    // Anything already planned against a stream that has since been removed
+    // from Settings still needs a row, so it can be seen and moved.
+    const known = new Set(list.map(function (s) { return s.id; }));
+    RM.records('resourceScenarios').forEach(function (scenario) {
+      Object.keys(scenario.allocations || {}).forEach(function (streamId) {
+        if (!known.has(streamId)) {
+          known.add(streamId);
+          list.push({ id: streamId, name: streamId === 'unassigned' ? 'No stream' : streamId + ' (not in settings)' });
+        }
+      });
+    });
+    return list;
+  }
+
+  function capacityFte(scenario, streamId, typeId, month) {
+    const allocations = scenario.allocations || {};
+    const stream = allocations[streamId] || {};
+    const byType = stream[typeId] || {};
+    return Number(byType[month]) || 0;
+  }
+
+  function capacityDays(scenario, streamId, typeId, month) {
+    return capacityFte(scenario, streamId, typeId, month) * workingDays();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Capacity plan (the editable grid)                                 */
+  /* ---------------------------------------------------------------- */
+
+  function capacityPlan(scenario) {
+    const months = monthWindow();
+    const resourceTypes = RM.effort.resourceTypes();
+    const draft = JSON.parse(JSON.stringify(scenario.allocations || {}));
+    const wrapper = el('div', 'stack');
+
+    if (!resourceTypes.length || !streams().length) {
+      return RM.emptyState('Nothing to plan against',
+        'Add resource types and resource streams in Settings first.');
     }
 
-    root.appendChild(renderTable(demand, resourceTypes, scenario));
-    root.appendChild(renderChart(demand, resourceTypes, scenario));
-    root.appendChild(el('p', 'muted small',
-      'Effort is spread evenly across the working days of each item (about ' + WORKING_DAYS_PER_MONTH +
-      ' working days per month). Red cells are months where estimated demand is above the configured capacity.'));
+    const table = el('table', 'table table-matrix table-capacity', [
+      el('thead', null, el('tr', null, [
+        el('th', 'sticky-col', 'Stream / discipline')
+      ].concat(months.map(function (month) {
+        return el('th', 'numeric', monthLabel(month));
+      })).concat([el('th', 'numeric', 'Avg')]))),
+      el('tbody', null, rows())
+    ]);
 
-    function segment(label, active) {
-      return el('button', {
-        class: 'segment' + (active ? ' segment-active' : ''), type: 'button',
-        onclick: function () { state.mode = label === 'Fast MVP' ? 'fast' : 'standard'; RM.renderView(); }
-      }, label);
+    RM.append(wrapper, [
+      el('p', 'muted small',
+        'Capacity is entered in FTE. One FTE is ' + workingDays() + ' working days per month (Settings). ' +
+        'Fill a row from the first month with the arrow button.'),
+      el('div', 'table-wrap', table),
+      el('div', 'sticky-actions', [
+        el('span', 'muted', 'Nothing is stored until you press Save.'),
+        RM.button('Reload without saving', function () { RM.renderView(); }),
+        RM.button('Save capacity plan', save, 'primary')
+      ])
+    ]);
+    return wrapper;
+
+    function rows() {
+      const out = [];
+      streams().forEach(function (stream) {
+        out.push(el('tr', 'row-group', [
+          el('th', { class: 'sticky-col', colspan: String(months.length + 2) }, stream.name)
+        ]));
+        resourceTypes.forEach(function (type) {
+          const cells = [el('th', 'sticky-col row-header', [
+            el('span', 'row-header-indent'),
+            el('span', null, type.name),
+            el('button', {
+              class: 'icon-button', type: 'button',
+              title: 'Copy the first month across the row',
+              onclick: function () { fillRow(stream.id, type.id); }
+            }, '⇢')
+          ])];
+          const average = el('td', 'numeric muted', '');
+
+          months.forEach(function (month) {
+            const input = el('input', {
+              class: 'input input-compact cell-input',
+              type: 'number', min: '0', step: '0.25',
+              value: valueOf(stream.id, type.id, month) || ''
+            });
+            input.dataset.stream = stream.id;
+            input.dataset.type = type.id;
+            input.dataset.month = month;
+            input.addEventListener('change', function () {
+              setValue(stream.id, type.id, month, input.value === '' ? 0 : Number(input.value));
+              updateAverage();
+            });
+            cells.push(el('td', 'numeric', input));
+          });
+
+          cells.push(average);
+          out.push(el('tr', null, cells));
+
+          updateAverage();
+          function updateAverage() {
+            let total = 0;
+            months.forEach(function (month) { total += valueOf(stream.id, type.id, month); });
+            const mean = months.length ? total / months.length : 0;
+            average.textContent = mean ? RM.effort.format(mean) + ' FTE' : '–';
+          }
+        });
+      });
+      return out;
+    }
+
+    function valueOf(streamId, typeId, month) {
+      return Number(((draft[streamId] || {})[typeId] || {})[month]) || 0;
+    }
+
+    function setValue(streamId, typeId, month, value) {
+      if (!draft[streamId]) draft[streamId] = {};
+      if (!draft[streamId][typeId]) draft[streamId][typeId] = {};
+      if (!value) delete draft[streamId][typeId][month];
+      else draft[streamId][typeId][month] = value;
+    }
+
+    function fillRow(streamId, typeId) {
+      const first = valueOf(streamId, typeId, months[0]);
+      months.forEach(function (month) { setValue(streamId, typeId, month, first); });
+      Array.prototype.forEach.call(table.querySelectorAll('.cell-input'), function (input) {
+        if (input.dataset.stream === streamId && input.dataset.type === typeId) {
+          input.value = first || '';
+        }
+      });
+      RM.renderView.pendingScroll = true;
+      RM.toast('Filled ' + RM.options.name('resourceStreams', streamId) + ' / ' + RM.options.name('resourceTypes', typeId) +
+        ' with ' + RM.effort.format(first) + ' FTE. Remember to save.', 'info');
+    }
+
+    function save() {
+      RM.api.update('resourceScenarios', scenario.id, Object.assign({}, scenario, { allocations: draft }))
+        .then(function () {
+          RM.toast('Capacity plan saved.', 'success');
+          return RM.refresh();
+        })
+        .catch(function (err) { RM.handleError(err, 'Could not save the capacity plan'); });
     }
   }
 
   /* ---------------------------------------------------------------- */
-  /* Demand model                                                      */
+  /* Demand                                                            */
   /* ---------------------------------------------------------------- */
 
-  function buildDemand(resourceTypes) {
-    const items = RM.records('roadmapItems').filter(RM.matchesFilters);
-    const perMonth = {};
+  /**
+   * Effort is spread evenly across the days of the system change the task
+   * belongs to, then totalled per stream, discipline and month.
+   */
+  function buildDemand(months) {
+    const resourceTypes = RM.effort.resourceTypes();
+    const demand = {};
     const contributors = {};
+    let undated = 0;
+    let untasked = 0;
 
-    items.forEach(function (item) {
-      if (!item.startDate || !item.endDate) return;
+    RM.records('roadmapItems').filter(RM.matchesFilters).forEach(function (item) {
       const start = RM.dates.parseIso(item.startDate);
       const end = RM.dates.parseIso(item.endDate);
-      if (!start || !end || end < start) return;
-      const estimate = (item.estimates || {})[state.mode] || {};
-      const days = estimate.days || {};
+      const tasks = item.tasks || [];
+      if (state.source === 'tasks' && tasks.length === 0) untasked += 1;
+      if (!start || !end || end < start) {
+        if (state.source !== 'tasks' || tasks.length) undated += 1;
+        return;
+      }
       const totalDays = RM.dates.daysBetween(start, end) + 1;
 
-      const months = monthsBetween(start, end);
-      months.forEach(function (month) {
+      const lines = state.source === 'tasks'
+        ? tasks.map(function (task) {
+          return { stream: RM.streamOf(item, task) || 'unassigned', days: RM.effort.ofTask(task), label: item.title + ' · ' + task.name };
+        })
+        : [{ stream: item.stream || 'unassigned', days: RM.effort.ofEstimate(item, state.source), label: item.title }];
+
+      monthsBetween(start, end).forEach(function (month) {
+        if (months.indexOf(month.key) < 0) return;
         const overlapDays = overlap(start, end, month.start, month.end);
         if (overlapDays <= 0) return;
         const share = overlapDays / totalDays;
-        if (!perMonth[month.key]) {
-          perMonth[month.key] = { key: month.key, label: month.label, start: month.start, demand: {} };
-          contributors[month.key] = [];
-        }
-        resourceTypes.forEach(function (type) {
-          const value = (Number(days[type.id]) || 0) * share;
-          if (!value) return;
-          perMonth[month.key].demand[type.id] = (perMonth[month.key].demand[type.id] || 0) + value;
+
+        lines.forEach(function (line) {
+          resourceTypes.forEach(function (type) {
+            const value = (line.days[type.id] || 0) * share;
+            if (!value) return;
+            const key = line.stream + '|' + type.id + '|' + month.key;
+            demand[key] = (demand[key] || 0) + value;
+            if (!contributors[key]) contributors[key] = [];
+            if (contributors[key].indexOf(line.label) < 0) contributors[key].push(line.label);
+          });
         });
-        contributors[month.key].push(item.title);
       });
     });
 
-    const months = Object.keys(perMonth)
-      .map(function (key) { return perMonth[key]; })
-      .sort(function (a, b) { return a.start - b.start; });
-
-    return { months: months, contributors: contributors };
+    return { demand: demand, contributors: contributors, undated: undated, untasked: untasked };
   }
 
   function monthsBetween(start, end) {
@@ -137,12 +368,7 @@
     while (cursor <= end) {
       const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
-      months.push({
-        key: monthStart.getFullYear() + '-' + String(monthStart.getMonth() + 1).padStart(2, '0'),
-        label: RM.dates.MONTHS[monthStart.getMonth()] + ' ' + monthStart.getFullYear(),
-        start: monthStart,
-        end: monthEnd
-      });
+      months.push({ key: monthKey(monthStart), start: monthStart, end: monthEnd });
       cursor.setMonth(cursor.getMonth() + 1);
     }
     return months;
@@ -155,96 +381,149 @@
     return days > 0 ? days : 0;
   }
 
-  function capacityFor(scenario, typeId) {
-    return (Number(scenario.resources[typeId]) || 0) * WORKING_DAYS_PER_MONTH;
+  function demandView(scenario) {
+    const months = monthWindow();
+    const resourceTypes = RM.effort.resourceTypes();
+    const model = buildDemand(months);
+    const streamList = streams();
+
+    const sourceSwitch = el('div', 'segmented', [
+      sourceSegment('From tasks', 'tasks'),
+      sourceSegment('Fast MVP estimate', 'fast'),
+      sourceSegment('Standard estimate', 'standard')
+    ]);
+
+    return el('div', 'stack', [
+      el('div', 'toolbar toolbar-inner', [
+        el('span', 'muted small', 'Demand source'),
+        sourceSwitch,
+        el('div', 'toolbar-spacer'),
+        el('span', 'muted small', RM.filtersActive() ? 'Roadmap filters are applied.' : 'All roadmap items included.')
+      ]),
+      model.untasked && state.source === 'tasks'
+        ? el('div', 'callout callout-info', model.untasked + ' system change(s) have no tasks yet, so they add nothing to demand. Switch source to an estimate to include them.')
+        : null,
+      el('div', 'table-wrap', el('table', 'table table-matrix', [
+        el('thead', null, el('tr', null, [el('th', 'sticky-col', 'Stream / discipline')]
+          .concat(months.map(function (month) { return el('th', 'numeric', monthLabel(month)); })))),
+        el('tbody', null, demandRows())
+      ])),
+      el('p', 'muted small',
+        'Each cell shows demand in days against the capacity planned for that month. ' +
+        'Red means demand is above capacity. Nothing here changes a date - it is for the conversation about what moves.'),
+      totalsChart()
+    ]);
+
+    function sourceSegment(label, id) {
+      return el('button', {
+        class: 'segment' + (state.source === id ? ' segment-active' : ''), type: 'button',
+        onclick: function () { state.source = id; RM.renderView(); }
+      }, label);
+    }
+
+    function demandRows() {
+      const out = [];
+      streamList.forEach(function (stream) {
+        const hasAny = resourceTypes.some(function (type) {
+          return months.some(function (month) {
+            return model.demand[stream.id + '|' + type.id + '|' + month] || capacityDays(scenario, stream.id, type.id, month);
+          });
+        });
+        if (!hasAny) return;
+
+        out.push(el('tr', 'row-group', [
+          el('th', { class: 'sticky-col', colspan: String(months.length + 1) }, stream.name)
+        ]));
+
+        resourceTypes.forEach(function (type) {
+          const cells = [el('th', 'sticky-col row-header', [
+            el('span', 'row-header-indent'), el('span', null, type.name)
+          ])];
+          months.forEach(function (month) {
+            const key = stream.id + '|' + type.id + '|' + month;
+            const value = model.demand[key] || 0;
+            const capacity = capacityDays(scenario, stream.id, type.id, month);
+            const over = capacity > 0 ? value > capacity + 0.05 : value > 0.05;
+            const title = (model.contributors[key] || []).slice(0, 8).join('\n');
+            cells.push(el('td', {
+              class: 'numeric cell-stack' + (over ? ' cell-over' : (value ? ' cell-demand' : '')),
+              title: (over ? (capacity > 0 ? 'Over capacity by ' + RM.effort.format(value - capacity) + ' days' : 'No capacity planned') + '\n' : '') + title
+            }, [
+              el('span', 'cell-demand-value', value ? RM.effort.format(value) : '–'),
+              el('span', 'cell-capacity-value', capacity ? '/ ' + RM.effort.format(capacity) : '/ 0')
+            ]));
+          });
+          out.push(el('tr', null, cells));
+        });
+      });
+
+      if (!out.length) {
+        out.push(el('tr', null, el('td', { colspan: String(months.length + 1), class: 'muted' },
+          'No demand or capacity in these months.')));
+      }
+      return out;
+    }
+
+    function totalsChart() {
+      const max = Math.max(1, resourceTypes.reduce(function (peak, type) {
+        return months.reduce(function (inner, month) {
+          const demand = streamList.reduce(function (sum, stream) {
+            return sum + (model.demand[stream.id + '|' + type.id + '|' + month] || 0);
+          }, 0);
+          const capacity = streamList.reduce(function (sum, stream) {
+            return sum + capacityDays(scenario, stream.id, type.id, month);
+          }, 0);
+          return Math.max(inner, demand, capacity);
+        }, peak);
+      }, 0));
+
+      return el('div', 'chart-wrap', resourceTypes.map(function (type) {
+        return el('div', 'chart-block', [
+          el('div', 'chart-title', [
+            el('strong', null, type.name),
+            el('span', 'muted small', 'All streams, days per month')
+          ]),
+          el('div', 'chart', months.map(function (month) {
+            const demand = streamList.reduce(function (sum, stream) {
+              return sum + (model.demand[stream.id + '|' + type.id + '|' + month] || 0);
+            }, 0);
+            const capacity = streamList.reduce(function (sum, stream) {
+              return sum + capacityDays(scenario, stream.id, type.id, month);
+            }, 0);
+            const over = capacity > 0 ? demand > capacity + 0.05 : demand > 0.05;
+            return el('div', {
+              class: 'chart-col',
+              title: monthLabel(month) + ': ' + RM.effort.format(demand) + ' days demand, ' + RM.effort.format(capacity) + ' days capacity'
+            }, [
+              el('div', 'chart-bar-track', [
+                el('div', { class: 'chart-bar' + (over ? ' chart-bar-over' : ''), style: { height: Math.round((demand / max) * 100) + '%' } }),
+                capacity > 0 ? el('div', { class: 'chart-capacity', style: { bottom: Math.round((capacity / max) * 100) + '%' } }) : null
+              ]),
+              el('span', 'chart-label', monthLabel(month).slice(0, 3))
+            ]);
+          }))
+        ]);
+      }));
+    }
   }
 
   /* ---------------------------------------------------------------- */
-  /* Rendering                                                         */
-  /* ---------------------------------------------------------------- */
-
-  function renderTable(demand, resourceTypes, scenario) {
-    return el('div', 'table-wrap', el('table', 'table table-matrix', [
-      el('thead', null, el('tr', null, [el('th', null, 'Resource')].concat(
-        demand.months.map(function (month) { return el('th', 'numeric', month.label); })
-      ))),
-      el('tbody', null, resourceTypes.map(function (type) {
-        const capacity = capacityFor(scenario, type.id);
-        return el('tr', null, [
-          el('th', 'row-header', [
-            el('span', null, type.name),
-            el('span', 'muted small', ' cap. ' + formatNumber(capacity) + ' d/m')
-          ])
-        ].concat(demand.months.map(function (month) {
-          const value = month.demand[type.id] || 0;
-          const over = capacity > 0 && value > capacity + 0.01;
-          return el('td', {
-            class: 'numeric' + (over ? ' cell-over' : (value ? ' cell-demand' : '')),
-            title: over ? 'Demand exceeds capacity by ' + formatNumber(value - capacity) + ' days' : ''
-          }, value ? formatNumber(value) : '–');
-        })));
-      }))
-    ]));
-  }
-
-  function renderChart(demand, resourceTypes, scenario) {
-    const max = Math.max(1, demand.months.reduce(function (peak, month) {
-      return resourceTypes.reduce(function (inner, type) {
-        return Math.max(inner, month.demand[type.id] || 0, capacityFor(scenario, type.id));
-      }, peak);
-    }, 0));
-
-    return el('div', 'chart-wrap', resourceTypes.map(function (type) {
-      const capacity = capacityFor(scenario, type.id);
-      return el('div', 'chart-block', [
-        el('div', 'chart-title', [
-          el('strong', null, type.name),
-          el('span', 'muted small', 'Capacity ' + formatNumber(capacity) + ' days / month')
-        ]),
-        el('div', 'chart', demand.months.map(function (month) {
-          const value = month.demand[type.id] || 0;
-          const over = capacity > 0 && value > capacity + 0.01;
-          return el('div', { class: 'chart-col', title: month.label + ': ' + formatNumber(value) + ' days' }, [
-            el('div', 'chart-bar-track', [
-              el('div', {
-                class: 'chart-bar' + (over ? ' chart-bar-over' : ''),
-                style: { height: Math.round((value / max) * 100) + '%' }
-              }),
-              capacity > 0 ? el('div', { class: 'chart-capacity', style: { bottom: Math.round((capacity / max) * 100) + '%' } }) : null
-            ]),
-            el('span', 'chart-label', month.label.slice(0, 3))
-          ]);
-        }))
-      ]);
-    }));
-  }
-
-  function formatNumber(value) {
-    const rounded = Math.round(value * 10) / 10;
-    return String(rounded);
-  }
-
-  /* ---------------------------------------------------------------- */
-  /* Scenario editing                                                  */
+  /* Scenario housekeeping                                             */
   /* ---------------------------------------------------------------- */
 
   function openScenarioForm(scenario) {
     const isNew = !scenario;
-    const resourceTypes = RM.options.active('resourceTypes');
-    const fields = [
+    const form = RM.form([
       { name: 'name', label: 'Scenario name', required: true, full: true },
       { name: 'description', label: 'Description', type: 'textarea', full: true, rows: 2 },
-      { name: 'active', label: 'Use as the default scenario', type: 'checkbox', full: true },
-      { type: 'section', label: 'Capacity (FTE)' }
-    ].concat(resourceTypes.map(function (type) {
-      return { name: 'resources.' + type.id, label: type.name, type: 'number', min: 0, step: '0.25' };
-    }));
+      { name: 'active', label: 'Use as the default scenario', type: 'checkbox', full: true }
+    ], scenario || { active: false });
 
-    const form = RM.form(fields, scenario || { active: false, resources: {} });
     const handle = RM.modal({
       title: isNew ? 'New resource scenario' : 'Edit scenario',
-      subtitle: 'Capacity is expressed in FTE and converted to about ' + WORKING_DAYS_PER_MONTH + ' working days per month.',
+      subtitle: isNew ? 'The monthly figures are filled in on the Capacity plan grid.' : scenario.name,
       size: 'medium',
+      dismissible: false,
       body: form.element,
       footer: [
         RM.button('Cancel', function () { handle.close(); }),
@@ -253,13 +532,14 @@
     });
 
     function save() {
-      const record = Object.assign({}, scenario || {}, form.read());
+      const record = Object.assign({}, scenario || { allocations: {} }, form.read());
       const request = isNew
         ? RM.api.create('resourceScenarios', record)
         : RM.api.update('resourceScenarios', scenario.id, record);
       request.then(function (response) {
         handle.close();
         if (response.record) state.scenarioId = response.record.id;
+        state.tab = 'capacity';
         RM.toast('Scenario saved.', 'success');
         return RM.refresh();
       }).catch(function (err) {
@@ -269,10 +549,33 @@
     }
   }
 
+  function duplicateScenario(scenario) {
+    RM.prompt({
+      title: 'Duplicate scenario',
+      message: 'The whole monthly capacity plan is copied, so you can change one thing and compare.',
+      label: 'New scenario name',
+      value: scenario.name + ' (copy)',
+      confirmLabel: 'Duplicate'
+    }).then(function (name) {
+      if (!name) return;
+      RM.api.create('resourceScenarios', {
+        name: name,
+        description: scenario.description,
+        active: false,
+        allocations: JSON.parse(JSON.stringify(scenario.allocations || {}))
+      }).then(function (response) {
+        state.scenarioId = response.record.id;
+        RM.toast('Scenario duplicated.', 'success');
+        return RM.refresh();
+      }).catch(function (err) { RM.handleError(err, 'Could not duplicate the scenario'); });
+    });
+  }
+
   function removeScenario(scenario) {
     RM.confirm({
       title: 'Delete scenario',
       message: 'Delete the scenario "' + scenario.name + '"?',
+      detail: 'Its whole monthly capacity plan goes with it.',
       confirmLabel: 'Delete',
       danger: true
     }).then(function (ok) {

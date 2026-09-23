@@ -74,6 +74,7 @@ function sendError(res, err) {
   else if (code === 'NOT_FOUND' || code === 'UNKNOWN_DATASET') statusCode = 404;
   else if (code === 'BAD_REQUEST' || code === 'BAD_BACKUP' || code === 'INVALID_PAYLOAD') statusCode = 400;
   else if (code === 'HAS_CHILDREN') statusCode = 409;
+  else if (code === 'BAD_PASSWORD') statusCode = 403;
   else if (code === 'LOCKED') statusCode = 423;
   else if (code === 'CORRUPT_FILE') statusCode = 500;
 
@@ -516,6 +517,7 @@ function saveSettings(body) {
   let after = null;
   const outcome = store.save('settings', body.revision, function (settings) {
     before = settings;
+    requireSettingsPassword(settings, body.password);
     const checked = validation.validateSettings(body.settings, { existing: settings });
     if (!checked.ok) throw validationError(checked.errors);
     after = checked.record;
@@ -523,6 +525,25 @@ function saveSettings(body) {
   });
   auditChange('Updated', 'settings', after, before, editor);
   return { revision: outcome.revision, updatedAt: outcome.updatedAt, settings: after };
+}
+
+/**
+ * The Settings screen is password protected. This is a speed bump that keeps
+ * the shared lists from being changed by accident - it is not security, and
+ * the application still has no user accounts.
+ */
+function requireSettingsPassword(settings, supplied) {
+  const expected = validation.trimmed(settings && settings.settingsPassword);
+  if (!expected) return;
+  if (validation.trimmed(supplied) !== expected) {
+    throw new store.StoreError('BAD_PASSWORD', 'That settings password is not correct.');
+  }
+}
+
+function checkSettingsPassword(body) {
+  const settings = store.records('settings');
+  const expected = validation.trimmed(settings.settingsPassword);
+  return { ok: !expected || validation.trimmed(body.password) === expected, required: !!expected };
 }
 
 /* ------------------------------------------------------------------ */
@@ -568,6 +589,49 @@ function exportCsv(dataset) {
       value: function (row) { return csvSchema.toCell(column, row, settings); }
     };
   }), rows);
+}
+
+/** A flat register of every task under every system change. */
+function exportTasksCsv() {
+  const settings = store.records('settings');
+  const programmes = store.records('programmes');
+  const columns = csvSchema.taskColumns(settings);
+  const rows = [];
+
+  store.records('roadmapItems').forEach(function (item) {
+    const programme = programmes.find(function (p) { return p.id === item.programmeId; });
+    (item.tasks || []).forEach(function (task) {
+      rows.push(Object.assign({}, task, {
+        roadmapItemId: item.id,
+        roadmapItemTitle: item.title,
+        programmeName: programme ? programme.name : '',
+        stream: task.stream || item.stream || '',
+        okrNames: (task.okrIds || []).map(function (id) { return okrName(settings, id); }).filter(Boolean).join('; '),
+        linkText: (task.links || []).map(function (link) {
+          return link.label && link.label !== link.url ? link.label + ' <' + link.url + '>' : link.url;
+        }).join('; ')
+      }));
+    });
+  });
+
+  return csv.stringify(columns.map(function (column) {
+    return {
+      header: column.header,
+      value: function (row) { return csvSchema.toCell(column, row, settings); }
+    };
+  }), rows);
+}
+
+function okrName(settings, id) {
+  const objectives = Array.isArray(settings.okrs) ? settings.okrs : [];
+  for (let i = 0; i < objectives.length; i += 1) {
+    if (objectives[i].id === id) return objectives[i].name;
+    const children = objectives[i].children || [];
+    for (let j = 0; j < children.length; j += 1) {
+      if (children[j].id === id) return objectives[i].name + ' / ' + children[j].name;
+    }
+  }
+  return id;
 }
 
 function importBundle(body) {
@@ -800,6 +864,10 @@ async function handleApi(req, res, pathname, query) {
     return sendJson(res, 200, saveSettings(await readBody(req)));
   }
 
+  if (method === 'POST' && head === 'settings' && segments[1] === 'unlock') {
+    return sendJson(res, 200, checkSettingsPassword(await readBody(req)));
+  }
+
   if (method === 'GET' && head === 'audit') {
     const limit = Math.min(2000, Math.max(1, Number(query.limit) || 300));
     let records = store.records('audit').slice().reverse();
@@ -863,8 +931,9 @@ async function handleApi(req, res, pathname, query) {
 
   if (method === 'GET' && head === 'export' && segments[1] === 'csv' && segments[2]) {
     const dataset = segments[2];
-    const text = exportCsv(dataset);
-    const fileName = store.definition(dataset).file.replace(/\.json$/, '') + '_' + fileStamp() + '.csv';
+    const text = dataset === 'tasks' ? exportTasksCsv() : exportCsv(dataset);
+    const baseName = dataset === 'tasks' ? 'tasks' : store.definition(dataset).file.replace(/\.json$/, '');
+    const fileName = baseName + '_' + fileStamp() + '.csv';
     writeExport(fileName, text);
     res.writeHead(200, {
       'Content-Type': 'text/csv; charset=utf-8',

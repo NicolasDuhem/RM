@@ -146,6 +146,7 @@
       title: isNew ? 'New backlog item' : 'Edit backlog item',
       subtitle: 'Backlog items have no dates. Add dates when you promote the item onto the roadmap.',
       size: 'large',
+      dismissible: false,
       body: form.element,
       footer: [
         RM.button('Cancel', function () { handle.close(); }),
@@ -241,6 +242,7 @@
       title: 'Move to Roadmap',
       subtitle: record.change,
       size: 'medium',
+      dismissible: false,
       body: el('div', 'stack', [dependencyNote, form.element]),
       footer: [
         RM.button('Cancel', function () { handle.close(); }),

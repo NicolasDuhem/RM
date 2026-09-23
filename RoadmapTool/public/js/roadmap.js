@@ -74,7 +74,18 @@
         if (children.length === 0) {
           rows.push(emptyProgrammeRow(programme, timeline));
         } else {
-          children.forEach(function (item) { rows.push(itemRow(item, timeline)); });
+          children.forEach(function (item) {
+            rows.push(itemRow(item, timeline));
+            // Level 3: the tasks under this system change.
+            if (ui.expandedItems[item.id]) {
+              const tasks = item.tasks || [];
+              if (tasks.length === 0) {
+                rows.push(emptyItemRow(item, timeline));
+              } else {
+                tasks.forEach(function (task) { rows.push(taskRow(item, task, timeline)); });
+              }
+            }
+          });
         }
       }
     });
@@ -212,6 +223,11 @@
       ]),
       RM.button('Expand all', function () {
         RM.state.ui.collapsed = {};
+        const expanded = {};
+        RM.records('roadmapItems').forEach(function (item) {
+          if ((item.tasks || []).length) expanded[item.id] = true;
+        });
+        RM.state.ui.expandedItems = expanded;
         RM.savePrefs();
         RM.renderView();
       }),
@@ -219,6 +235,7 @@
         const collapsed = {};
         RM.records('programmes').forEach(function (p) { collapsed[p.id] = true; });
         RM.state.ui.collapsed = collapsed;
+        RM.state.ui.expandedItems = {};
         RM.savePrefs();
         RM.renderView();
       })
@@ -269,6 +286,10 @@
         select('priority', 'Priority', optionValues('priorities')),
         select('type', 'Type', optionValues('itemTypes')),
         select('phase', 'Phase', optionValues('milestoneTypes')),
+        select('stream', 'Stream', optionValues('resourceStreams')),
+        select('okr', 'OKR', RM.okrs.flat().map(function (entry) {
+          return { value: entry.id, label: (entry.level === 2 ? '\u2014 ' : '') + entry.name };
+        })),
         select('owner', 'Owner', RM.ownersInUse().map(function (o) { return { value: o, label: o }; })),
         select('productOwner', 'Product Owner', RM.productOwnersInUse().map(function (o) { return { value: o, label: o }; })),
         dateInput('dateFrom', 'From'),
@@ -321,7 +342,7 @@
     const labels = {
       programme: 'Programme', system: 'System', status: 'Status', priority: 'Priority',
       type: 'Type', phase: 'Phase', owner: 'Owner', productOwner: 'Product Owner',
-      dateFrom: 'From', dateTo: 'To', search: 'Search'
+      stream: 'Stream', okr: 'OKR', dateFrom: 'From', dateTo: 'To', search: 'Search'
     };
     const display = {
       programme: function (v) { const p = RM.programmeById(v); return p ? p.name : v; },
@@ -330,6 +351,8 @@
       priority: function (v) { return RM.options.name('priorities', v); },
       type: function (v) { return RM.options.name('itemTypes', v); },
       phase: function (v) { return RM.options.name('milestoneTypes', v); },
+      stream: function (v) { return RM.options.name('resourceStreams', v); },
+      okr: function (v) { return RM.okrs.shortLabel(v); },
       dateFrom: RM.dates.formatDate,
       dateTo: RM.dates.formatDate
     };
@@ -385,6 +408,10 @@
           RM.statusBadge(programme.status),
           programme.owner ? el('span', 'muted', programme.owner) : null,
           el('span', 'muted', children.length + ' change' + (children.length === 1 ? '' : 's')),
+          (function () {
+            const effort = RM.effort.total(RM.effort.ofProgramme(programme.id));
+            return effort ? el('span', 'muted', RM.effort.format(effort) + ' d') : null;
+          }()),
           range.scheduled
             ? el('span', 'muted', RM.dates.formatDate(range.startDate) + ' → ' + RM.dates.formatDate(range.endDate))
             : el('span', 'pill pill-quiet', 'Not scheduled')
@@ -434,21 +461,97 @@
     ]);
   }
 
+  /** Level 3: one task under a system change. */
+  function taskRow(item, task, timeline) {
+    const days = RM.effort.ofTask(task);
+    const total = RM.effort.total(days);
+    const stream = RM.streamOf(item, task);
+
+    const left = el('div', 'gantt-left row-left row-left-task', [
+      el('span', 'row-indent row-indent-deep'),
+      el('div', 'row-left-text', [
+        el('button', { class: 'row-title row-title-task', type: 'button', onclick: function () { RM.editor.editTask(item, task, function () { RM.renderView(); }); } }, task.name),
+        el('div', 'row-meta', [
+          RM.statusBadge(task.status),
+          task.owner ? el('span', 'muted', task.owner) : null,
+          stream ? el('span', 'pill', RM.options.name('resourceStreams', stream)) : null,
+          total ? el('span', 'muted', RM.effort.format(total) + ' d') : null,
+          (task.okrIds || []).length
+            ? el('span', { class: 'pill pill-okr', title: (task.okrIds || []).map(RM.okrs.label).join('\n') }, 'OKR \u00d7' + task.okrIds.length)
+            : null
+        ])
+      ]),
+      el('div', 'row-indicators', (task.links || []).slice(0, 3).map(function (link) {
+        return el('a', {
+          class: 'indicator indicator-link', href: link.url, target: '_blank', rel: 'noreferrer noopener',
+          title: link.label + ' - ' + link.url,
+          onclick: function (event) { event.stopPropagation(); }
+        }, '\u2197');
+      }))
+    ]);
+
+    const bars = [];
+    const geometry = timeline.bar(item.startDate, item.endDate);
+    if (geometry) {
+      const bar = el('div', {
+        class: 'bar bar-task',
+        style: { left: geometry.left + 'px', width: geometry.width + 'px' }
+      }, el('span', 'bar-label', task.name));
+      attachTooltip(bar, function () { return taskTooltip(item, task, days); });
+      bar.addEventListener('click', function () { RM.editor.editTask(item, task, function () { RM.renderView(); }); });
+      bars.push(bar);
+    } else {
+      bars.push(el('div', 'bar-placeholder', 'Runs with its system change'));
+    }
+
+    return el('div', 'gantt-row gantt-row-task', [left, RM.gantt.timeCell(timeline, bars)]);
+  }
+
+  function emptyItemRow(item, timeline) {
+    return el('div', 'gantt-row gantt-row-empty', [
+      el('div', 'gantt-left row-left', [
+        el('span', 'row-indent row-indent-deep'),
+        el('span', 'muted', 'No tasks yet'),
+        el('button', { class: 'link-button', type: 'button', onclick: function () { RM.editor.editTask(item, null, function () { RM.renderView(); }); } }, '+ Add task')
+      ]),
+      RM.gantt.timeCell(timeline, [])
+    ]);
+  }
+
   function itemRow(item, timeline) {
+    const ui = RM.state.ui;
     const deps = RM.dependenciesFor(item.id);
     const dependencyCount = deps.dependsOn.length + deps.blocks.length;
     const blocked = deps.dependsOn.some(function (d) { return d.blocking && d.status !== 'closed' && d.status !== 'live'; });
     const openGates = (item.gates || []).filter(function (g) { return g.status !== 'closed' && g.status !== 'decided'; });
     const openRisks = (item.risks || []).filter(function (r) { return r.status !== 'closed'; });
+    const tasks = item.tasks || [];
+    const expanded = !!ui.expandedItems[item.id];
+    const effort = RM.effort.total(RM.effort.ofItem(item));
 
     const left = el('div', 'gantt-left row-left row-left-item', [
       el('span', 'row-indent'),
+      el('button', {
+        class: 'row-toggle row-toggle-task',
+        type: 'button',
+        title: tasks.length ? (expanded ? 'Hide tasks' : 'Show ' + tasks.length + ' task(s)') : 'No tasks yet',
+        onclick: function () {
+          if (ui.expandedItems[item.id]) delete ui.expandedItems[item.id];
+          else ui.expandedItems[item.id] = true;
+          RM.savePrefs();
+          RM.renderView();
+        }
+      }, tasks.length ? (expanded ? '\u25bc' : '\u25b6') : '\u00b7'),
       el('div', 'row-left-text', [
         el('button', { class: 'row-title', type: 'button', onclick: function () { RM.editor.openDetail(item.id); } }, item.title),
         el('div', 'row-meta', [
-          item.systemArea ? el('span', 'pill', RM.options.name('systems', item.systemArea)) : null,
+          (item.systemAreas || []).length
+            ? el('span', 'pill', RM.options.names('systems', item.systemAreas).join(', '))
+            : null,
           RM.statusBadge(item.status),
-          item.owner ? el('span', 'muted', item.owner) : null
+          item.owner ? el('span', 'muted', item.owner) : null,
+          tasks.length ? el('span', 'muted', tasks.length + ' task' + (tasks.length === 1 ? '' : 's')) : null,
+          effort ? el('span', 'muted', RM.effort.format(effort) + ' d') : null
         ])
       ]),
       el('div', 'row-indicators', [
@@ -566,6 +669,22 @@
     ];
   }
 
+  function taskTooltip(item, task, days) {
+    return [
+      el('strong', 'tooltip-title', task.name),
+      el('div', 'tooltip-row', [el('span', 'tooltip-label', 'System change'), el('span', null, item.title)]),
+      el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Status'), el('span', null, RM.options.name('statuses', task.status) || 'Not set')]),
+      task.owner ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Owner'), el('span', null, task.owner)]) : null,
+      el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Stream'),
+        el('span', null, RM.options.name('resourceStreams', RM.streamOf(item, task)) || 'Not set')]),
+      el('div', 'tooltip-effort', RM.effort.resourceTypes().map(function (type) {
+        return days[type.id] ? el('span', null, type.name + ': ' + RM.effort.format(days[type.id]) + ' d') : null;
+      })),
+      (task.okrIds || []).length ? el('div', 'tooltip-outcome', (task.okrIds || []).map(RM.okrs.label).join(' \u00b7 ')) : null,
+      el('div', 'tooltip-hint', 'Click to edit this task')
+    ];
+  }
+
   function programmeTooltip(programme, range, children) {
     return [
       el('strong', 'tooltip-title', programme.name),
@@ -680,6 +799,7 @@
     return el('div', 'legend', [
       el('span', 'legend-item', [el('span', 'legend-swatch legend-programme'), 'Programme (earliest child start to latest child end)']),
       el('span', 'legend-item', [el('span', 'legend-swatch legend-item-bar'), 'System change (coloured by status)']),
+      el('span', 'legend-item', [el('span', 'legend-swatch legend-task-bar'), 'Task (runs with its system change)']),
       el('span', 'legend-item', [el('span', 'legend-swatch legend-milestone'), 'Milestone']),
       el('span', 'legend-item', [el('span', 'legend-swatch legend-today'), 'Today']),
       RM.state.ui.roadmapMode === 'detailed'

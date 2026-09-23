@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-22T14:25:44.537Z",
+  "updatedAt": "2026-09-23T04:55:03.812Z",
   "records": [
     {
       "id": "PRG-0001",
@@ -13,9 +13,9 @@
       "priority": "critical",
       "colour": "#2563eb",
       "notes": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -29,9 +29,9 @@
       "priority": "high",
       "colour": "#7c3aed",
       "notes": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -45,9 +45,9 @@
       "priority": "critical",
       "colour": "#ea580c",
       "notes": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -60,10 +60,10 @@
       "status": "discovery",
       "priority": "high",
       "colour": "#0891b2",
-      "notes": "Quick Ship scope still to be defined.",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "notes": "",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     }
   ]

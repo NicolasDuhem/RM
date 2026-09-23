@@ -1,6 +1,6 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-22T14:25:44.534Z",
+  "updatedAt": "2026-09-23T04:55:03.807Z",
   "settings": {
     "appName": "Roadmap Tool",
     "organisation": "",
@@ -15,6 +15,8 @@
     "showTodayLine": true,
     "backupsToKeep": 50,
     "auditEntriesToKeep": 5000,
+    "workingDaysPerMonth": 21,
+    "settingsPassword": "Brompton2026",
     "systems": [
       {
         "id": "bpp",
@@ -344,6 +346,113 @@
         "id": "data",
         "name": "Data Engineering",
         "active": true
+      }
+    ],
+    "resourceStreams": [
+      {
+        "id": "b2b",
+        "name": "B2B",
+        "active": true
+      },
+      {
+        "id": "d2c",
+        "name": "D2C",
+        "active": true
+      },
+      {
+        "id": "netsuite-erp",
+        "name": "NetSuite / ERP",
+        "active": true
+      },
+      {
+        "id": "csi",
+        "name": "CSI",
+        "active": true
+      },
+      {
+        "id": "data-platform",
+        "name": "Data & Platform",
+        "active": true
+      },
+      {
+        "id": "shared",
+        "name": "Shared",
+        "active": true
+      }
+    ],
+    "okrs": [
+      {
+        "id": "okr-dealer",
+        "name": "Improve the dealer experience",
+        "active": true,
+        "children": [
+          {
+            "id": "kr-order-errors",
+            "name": "Reduce dealer ordering errors",
+            "active": true
+          },
+          {
+            "id": "kr-self-service",
+            "name": "Increase dealer self-service",
+            "active": true
+          },
+          {
+            "id": "kr-availability",
+            "name": "Trusted availability and lead times",
+            "active": true
+          }
+        ]
+      },
+      {
+        "id": "okr-global",
+        "name": "Scale globally on one platform",
+        "active": true,
+        "children": [
+          {
+            "id": "kr-new-entities",
+            "name": "Launch new entities on the platform",
+            "active": true
+          },
+          {
+            "id": "kr-entity-flows",
+            "name": "One order and stock flow per entity",
+            "active": true
+          }
+        ]
+      },
+      {
+        "id": "okr-data",
+        "name": "Trusted master data",
+        "active": true,
+        "children": [
+          {
+            "id": "kr-product-master",
+            "name": "One product master",
+            "active": true
+          },
+          {
+            "id": "kr-customer-master",
+            "name": "One customer and dealer master",
+            "active": true
+          }
+        ]
+      },
+      {
+        "id": "okr-efficiency",
+        "name": "Operational efficiency",
+        "active": true,
+        "children": [
+          {
+            "id": "kr-no-rekeying",
+            "name": "Remove manual rekeying",
+            "active": true
+          },
+          {
+            "id": "kr-time-to-publish",
+            "name": "Reduce time to publish product data",
+            "active": true
+          }
+        ]
       }
     ],
     "quarters": [

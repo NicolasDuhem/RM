@@ -137,18 +137,52 @@ async function run() {
 
   const itemA = await api('POST', '/api/dataset/roadmapItems/create', {
     revision: rev.roadmapItems, editor: 'Tester',
-    record: { title: 'Item A', programmeId: 'PRG-0001', startDate: '2026-09-01', endDate: '2026-10-31', status: 'build' }
+    record: {
+      title: 'Item A', programmeId: 'PRG-0001', startDate: '2026-09-01', endDate: '2026-10-31', status: 'build',
+      systemAreas: ['bpp', 'netsuite'], types: ['integration', 'rollout'], stream: 'b2b',
+      tasks: [
+        { id: 'TSK-0001', name: 'Build it', status: 'build', owner: 'Jake', okrIds: ['kr-new-entities'],
+          links: [{ label: 'Jira INT-1', url: 'https://jira.example.com/browse/INT-1' }],
+          days: { po: 2, dev: 8, int: 4, data: 0 } }
+      ]
+    }
   });
   equal('a valid roadmap item is created', itemA.body.record.id, 'RM-0001');
+  equal('a system change can hold several systems', itemA.body.record.systemAreas.length, 2);
+  equal('a system change can hold several types', itemA.body.record.types.length, 2);
+  equal('the item carries its resource stream', itemA.body.record.stream, 'b2b');
+  equal('tasks are stored under the item', itemA.body.record.tasks.length, 1);
+  equal('task effort is kept', itemA.body.record.tasks[0].days.dev, 8);
+  equal('task links are kept', itemA.body.record.tasks[0].links[0].label, 'Jira INT-1');
+  equal('task OKRs are kept', itemA.body.record.tasks[0].okrIds[0], 'kr-new-entities');
 
-  const itemB = await api('POST', '/api/dataset/roadmapItems/create', {
+  const legacy = await api('POST', '/api/dataset/roadmapItems/create', {
     revision: itemA.body.revision, editor: 'Tester',
+    record: {
+      title: 'Written by an older version', programmeId: 'PRG-0001',
+      systemArea: 'salesforce', type: 'system-change', scope: 'old scope', outOfScope: 'old',
+      tickets: [{ id: 'TKT-9', title: 'Old ticket', externalReference: 'JIRA-9' }]
+    }
+  });
+  equal('an older single system is folded into the list', legacy.body.record.systemAreas[0], 'salesforce');
+  equal('an older single type is folded into the list', legacy.body.record.types[0], 'system-change');
+  check('the removed scope fields are dropped', legacy.body.record.scope === undefined && legacy.body.record.outOfScope === undefined);
+  equal('older tickets become tasks', legacy.body.record.tasks[0].name, 'Old ticket');
+  equal('an older external reference becomes a link', legacy.body.record.tasks[0].links[0].url, 'JIRA-9');
+  await api('POST', '/api/dataset/roadmapItems/delete', {
+    revision: legacy.body.revision, id: legacy.body.record.id, editor: 'Tester',
+    revisions: { dependencies: (await revisions()).dependencies }
+  });
+
+  rev = await revisions();
+  const itemB = await api('POST', '/api/dataset/roadmapItems/create', {
+    revision: rev.roadmapItems, editor: 'Tester',
     record: { title: 'Item B', programmeId: 'PRG-0001', startDate: '2026-11-01', endDate: '2026-12-15' }
   });
   equal('ids keep incrementing', itemB.body.record.id, 'RM-0002');
 
   const stale = await api('POST', '/api/dataset/roadmapItems/create', {
-    revision: itemA.body.revision, editor: 'Someone else', record: { title: 'Stale write', programmeId: 'PRG-0001' }
+    revision: rev.roadmapItems, editor: 'Someone else', record: { title: 'Stale write', programmeId: 'PRG-0001' }
   });
   equal('a stale save is refused with a conflict', stale.status, 409);
   equal('the conflict is reported as CONFLICT', stale.body.error.code, 'CONFLICT');
@@ -301,6 +335,63 @@ async function run() {
     afterRestore.body.backups.length > backupList.body.backups.length);
 
   /* -------------------------------------------------- */
+  process.stdout.write('\nCapacity planning\n');
+  rev = await revisions();
+  const scenario = await api('POST', '/api/dataset/resourceScenarios/create', {
+    revision: rev.resourceScenarios, editor: 'Tester',
+    record: {
+      name: 'Test scenario', active: true,
+      allocations: { b2b: { dev: { '2027-01': 1.5, '2027-02': 2 } } }
+    }
+  });
+  equal('a scenario stores capacity per stream, type and month',
+    scenario.body.record.allocations.b2b.dev['2027-02'], 2);
+
+  const badMonth = await api('POST', '/api/dataset/resourceScenarios/create', {
+    revision: scenario.body.revision, editor: 'Tester',
+    record: { name: 'Bad months', allocations: { b2b: { dev: { 'January': 1 } } } }
+  });
+  equal('a capacity month must be written as YYYY-MM', badMonth.status, 422);
+
+  const negative = await api('POST', '/api/dataset/resourceScenarios/create', {
+    revision: scenario.body.revision, editor: 'Tester',
+    record: { name: 'Negative', allocations: { b2b: { dev: { '2027-01': -2 } } } }
+  });
+  equal('negative capacity is rejected', negative.status, 422);
+
+  const legacyScenario = await api('POST', '/api/dataset/resourceScenarios/create', {
+    revision: scenario.body.revision, editor: 'Tester',
+    record: { name: 'Older version', resources: { dev: 1.5 } }
+  });
+  const upgraded = legacyScenario.body.record.allocations.unassigned;
+  check('an older flat scenario becomes a monthly plan',
+    !!upgraded && Object.keys(upgraded.dev).length === 24 && Object.values(upgraded.dev)[0] === 1.5);
+
+  // The roadmap was emptied and re-imported earlier, so make a fresh item to
+  // export: one with several systems and a task on it.
+  rev = await revisions();
+  const exportProgramme = (await records('programmes'))[0];
+  await api('POST', '/api/dataset/roadmapItems/create', {
+    revision: rev.roadmapItems, editor: 'Tester',
+    record: {
+      title: 'Export sample', programmeId: exportProgramme.id,
+      systemAreas: ['bpp', 'netsuite'], types: ['integration'], stream: 'b2b',
+      startDate: '2027-01-01', endDate: '2027-03-31',
+      tasks: [{ id: 'TSK-9001', name: 'Build it', status: 'build', owner: 'Jake', days: { dev: 5 } }]
+    }
+  });
+
+  const taskCsv = await api('GET', '/api/export/csv/tasks');
+  equal('the task register exports as CSV', taskCsv.status, 200);
+  check('the task CSV carries the roll-up columns',
+    String(taskCsv.body).indexOf('Task,Status,Owner,Stream,OKRs,Links') > 0);
+  check('the task CSV contains a task row', String(taskCsv.body).indexOf('Build it') > 0);
+
+  const itemCsv = String((await api('GET', '/api/export/csv/roadmapItems')).body);
+  check('the roadmap CSV writes several systems in one column', itemCsv.indexOf('BPP; NetSuite') > 0);
+  check('the roadmap CSV no longer has a scope column', itemCsv.indexOf('Out Of Scope') < 0);
+
+  /* -------------------------------------------------- */
   process.stdout.write('\nFile safety\n');
   const programmesFile = path.join(ROOT, 'data', 'programmes.json');
   const goodContent = fs.readFileSync(programmesFile, 'utf8');
@@ -316,18 +407,32 @@ async function run() {
   check('no temporary write files are left behind',
     fs.readdirSync(path.join(ROOT, 'data')).every(function (f) { return !f.endsWith('.tmp'); }));
 
-  const settingsSave = await api('POST', '/api/settings/save', {
+  const noPassword = await api('POST', '/api/settings/save', {
     revision: (await revisions()).settings, editor: 'Tester',
+    settings: { appName: 'Should not save' }
+  });
+  equal('settings cannot be saved without the password', noPassword.status, 403);
+
+  const wrongPassword = await api('POST', '/api/settings/unlock', { password: 'nope' });
+  equal('a wrong settings password is refused', wrongPassword.body.ok, false);
+  const rightPassword = await api('POST', '/api/settings/unlock', { password: 'Brompton2026' });
+  equal('the settings password is accepted', rightPassword.body.ok, true);
+
+  const settingsSave = await api('POST', '/api/settings/save', {
+    revision: (await revisions()).settings, editor: 'Tester', password: 'Brompton2026',
     settings: { port: 70000 }
   });
   equal('an impossible port is rejected', settingsSave.status, 422);
 
   const settingsOk = await api('POST', '/api/settings/save', {
-    revision: (await revisions()).settings, editor: 'Tester',
+    revision: (await revisions()).settings, editor: 'Tester', password: 'Brompton2026',
     settings: { appName: 'Brompton Roadmap', statuses: [{ id: 'idea', name: 'Renamed idea' }] }
   });
-  equal('settings can be saved', settingsOk.status, 200);
+  equal('settings can be saved with the password', settingsOk.status, 200);
   equal('a renamed status keeps its id', settingsOk.body.settings.statuses[0].id, 'idea');
+  check('OKRs keep their two levels',
+    settingsOk.body.settings.okrs.length > 0 && settingsOk.body.settings.okrs[0].children.length > 0);
+  check('resource streams are part of settings', settingsOk.body.settings.resourceStreams.length > 0);
 
   /* -------------------------------------------------- */
   process.stdout.write('\nSample data\n');

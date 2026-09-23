@@ -6,11 +6,12 @@
  * dependencies, so this file is deliberately separate from run-tests.js.
  *
  *   npm install -g playwright && npx playwright install chromium
- *   node app/server.js                (in one window, on the port below)
+ *   node app/server.js                (in one window)
  *   node tests/browser-tests.js       (in another)
  *
  * WARNING: the run starts by resetting the roadmap to the sample data, so
  * point it at a test copy of the application, never at the live one.
+ * Set ROADMAP_URL to match the port that copy is running on.
  */
 
 const { chromium } = require('playwright');
@@ -25,118 +26,175 @@ function check(name, ok, detail) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
-  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  // start every run from the same sample data
+  page.on('console', m => { if (m.type() === 'error' && !/40[39]|422/.test(m.text())) errors.push(m.text()); });
+
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(() => fetch('/api/sample', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'sample', editor: 'test' }) }));
   await page.reload({ waitUntil: 'networkidle' });
   await page.evaluate(() => { window.RM.setEditorName('Nicolas'); window.RM.closeTopModal(); });
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400);
 
-  // --- create programme
-  await page.locator('.button', { hasText: '+ New Programme' }).click();
-  await page.waitForTimeout(250);
-  await page.locator('.modal input').first().fill('UI Test Programme');
-  await page.locator('.modal .button-primary').click();
+  console.log('\nRoadmap');
+  check('the roadmap draws programme rows', await page.locator('.gantt-row-programme').count() >= 4);
+  await page.locator('.row-toggle-task').first().click();
+  await page.waitForTimeout(400);
+  check('tasks show as a third level under a system change', await page.locator('.gantt-row-task').count() >= 1);
+  const itemMeta = await page.locator('.gantt-row-item').first().locator('.row-meta').innerText();
+  check('a system change shows its systems and effort', /Salesforce/.test(itemMeta) && /\d+ d/.test(itemMeta), itemMeta);
+
+  console.log('\nReading and editing in one layout');
+  await page.locator('.row-title', { hasText: 'Salesforce Accreditation Model' }).first().click();
+  await page.waitForTimeout(400);
+  const readLabels = await page.locator('.modal .definition dt').allTextContents();
+  await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).click();
+  await page.waitForTimeout(400);
+  const editLabels = await page.locator('.modal .definition dt').allTextContents();
+  check('editing keeps exactly the same fields in the same order',
+    JSON.stringify(readLabels) === JSON.stringify(editLabels));
+  check('editing swaps values for inputs in place', await page.locator('.modal .definition input').count() > 5);
+  await page.locator('.definition', { hasText: 'End date' }).locator('input').fill('2026-01-01');
+  await page.locator('.panel-footer .button-primary', { hasText: 'Save changes' }).click();
   await page.waitForTimeout(700);
-  check('new programme appears on the roadmap',
-    await page.locator('.row-title-programme', { hasText: 'UI Test Programme' }).count() === 1);
+  check('a bad date is flagged on the field itself', await page.locator('.definition.field-invalid').count() === 1);
+  await page.locator('.panel-footer .button', { hasText: 'Cancel' }).click();
+  await page.waitForTimeout(400);
+  check('cancel returns to reading', await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).count() === 1);
+  const tabs = await page.locator('.modal .tab').allTextContents();
+  check('the scope tab is gone', tabs.indexOf('Scope') < 0, tabs.join(','));
+  check('tasks are a tab of their own', tabs.indexOf('Tasks') >= 0);
+  await page.locator('.modal .icon-button').first().click();
+  await page.waitForTimeout(300);
 
-  // --- add system change into it
-  await page.locator('.button', { hasText: '+ Add System Change' }).first().click();
-  await page.waitForTimeout(250);
-  await page.locator('.modal .field', { hasText: 'Title' }).first().locator('input').fill('UI Test Change');
-  await page.locator('.modal .field', { hasText: 'Programme' }).first().locator('select').selectOption({ label: 'UI Test Programme' });
-  await page.locator('.modal .field', { hasText: 'Start date' }).locator('input').fill('2026-10-05');
-  await page.locator('.modal .field', { hasText: 'End date' }).locator('input').fill('2026-11-20');
-  await page.locator('.modal .button-primary').click();
+  console.log('\nCreating');
+  await page.locator('.button', { hasText: '+ New Programme' }).click();
+  await page.waitForTimeout(350);
+  check('a new programme uses the same panel', await page.locator('.modal .panel-group-title').count() >= 2);
+  await page.locator('.definition', { hasText: 'Programme name' }).locator('input').fill('UI Programme');
+  await page.locator('.panel-footer .button-primary').click();
   await page.waitForTimeout(900);
-  check('the detail panel opens after creating an item',
-    await page.locator('.detail-title', { hasText: 'UI Test Change' }).count() === 1);
-
-  // --- add a milestone through the detail panel
-  await page.locator('.tab', { hasText: 'Milestones' }).click();
-  await page.waitForTimeout(250);
-  await page.locator('.button', { hasText: '+ Add milestone' }).click();
-  await page.waitForTimeout(250);
-  const msModal = page.locator('.modal').last();
-  await msModal.locator('select').first().selectOption({ label: 'MVP' });
-  await msModal.locator('input[type=date]').fill('2026-11-10');
-  await msModal.locator('.button-primary').click();
-  await page.waitForTimeout(800);
-  check('the milestone is saved', await page.locator('td', { hasText: '10 Nov 2026' }).count() >= 1);
+  check('the created programme stays open to read', await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).count() === 1);
   await page.locator('.modal .icon-button').first().click();
   await page.waitForTimeout(300);
-  check('the milestone marker is drawn on the roadmap', await page.locator('.milestone').count() > 0);
 
-  // --- validation error surfaces
-  await page.locator('.row-title', { hasText: 'UI Test Change' }).first().click();
-  await page.waitForTimeout(300);
-  await page.locator('.modal .button-primary', { hasText: 'Edit' }).click();
+  await page.locator('.button', { hasText: '+ Add System Change' }).first().click();
   await page.waitForTimeout(400);
-  await page.locator('.modal .field', { hasText: 'End date' }).locator('input').fill('2026-01-01');
-  await page.locator('.modal .button-primary', { hasText: 'Save changes' }).click();
-  await page.waitForTimeout(600);
-  check('a bad date shows an error dialog', await page.locator('.error-list li').count() >= 1,
-    await page.locator('.error-list').innerText().catch(() => 'no list'));
-  await page.locator('.modal').last().locator('.button-primary').click();
+  check('a new system change uses the same panel', await page.locator('.modal .tabs .tab').count() === 8);
+  check('tabs needing a saved record are locked', await page.locator('.tab-locked').count() >= 4);
+  await page.locator('.definition', { hasText: 'Title' }).first().locator('input').fill('Multi select change');
+  await page.locator('.definition', { hasText: 'Programme' }).locator('select').selectOption({ label: 'UI Programme' });
+  await page.locator('.definition', { hasText: 'Systems' }).locator('.ms-control').click();
+  await page.waitForTimeout(250);
+  await page.locator('.ms-panel .ms-option', { hasText: 'Salesforce' }).click();
+  await page.locator('.ms-panel .ms-option', { hasText: 'NetSuite' }).click();
+  await page.locator('.modal-title').first().click();
   await page.waitForTimeout(200);
-  check('the edit form stays open with the field flagged', await page.locator('.field-invalid').count() >= 1);
-  await page.locator('.modal .icon-button').first().click();
-  await page.waitForTimeout(300);
+  await page.locator('.definition', { hasText: 'Types' }).locator('.ms-control').click();
+  await page.waitForTimeout(250);
+  await page.locator('.ms-panel .ms-option', { hasText: 'Integration' }).click();
+  await page.locator('.ms-panel .ms-option', { hasText: 'Rollout' }).click();
+  await page.locator('.modal-title').first().click();
+  await page.waitForTimeout(200);
+  await page.locator('.definition', { hasText: 'Resource stream' }).locator('select').selectOption({ label: 'B2B' });
+  await page.locator('.definition', { hasText: 'Start date' }).locator('input').fill('2026-10-01');
+  await page.locator('.definition', { hasText: 'End date' }).locator('input').fill('2026-12-31');
+  await page.locator('.panel-footer .button-primary').click();
+  await page.waitForTimeout(1000);
+  const stored = await page.evaluate(() => {
+    const i = window.RM.records('roadmapItems').find(r => r.title === 'Multi select change');
+    return i && { systems: i.systemAreas, types: i.types, stream: i.stream };
+  });
+  check('several systems can be selected', stored && stored.systems.length === 2, JSON.stringify(stored));
+  check('several types can be selected', stored && stored.types.length === 2, JSON.stringify(stored));
+  check('the tabs unlock once the record exists', await page.locator('.tab-locked').count() === 0);
 
-  // --- conflict protection: make the client revision stale, then save
-  await page.evaluate(() => { window.RM.state.roadmapItems.revision = 1; });
-  await page.locator('.row-title', { hasText: 'UI Test Change' }).first().click();
-  await page.waitForTimeout(300);
-  await page.locator('.modal .button-primary', { hasText: 'Edit' }).click();
+  console.log('\nTasks');
+  await page.locator('.tab', { hasText: 'Tasks' }).click();
   await page.waitForTimeout(400);
-  await page.locator('.modal .field', { hasText: 'Title' }).first().locator('input').fill('Stale edit');
-  await page.locator('.modal .button-primary', { hasText: 'Save changes' }).click();
-  await page.waitForTimeout(600);
-  const conflictText = await page.locator('.modal').last().innerText();
-  check('a stale save shows the conflict dialog', /changed since you opened/i.test(conflictText), conflictText.slice(0, 120));
-  check('the conflict dialog offers Reload latest', /Reload latest/.test(conflictText));
+  await page.locator('.button', { hasText: '+ Add task' }).first().click();
+  await page.waitForTimeout(400);
+  const taskModal = page.locator('.modal').last();
+  await taskModal.locator('.field', { hasText: 'Task name' }).locator('input').fill('Build the integration');
+  await taskModal.locator('.field').filter({ hasText: /^Owner$/ }).locator('input').fill('Jake');
+  await taskModal.locator('.field').filter({ hasText: /^Product Owner$/ }).locator('input').fill('3');
+  await taskModal.locator('.field').filter({ hasText: /^Development$/ }).locator('input').fill('12');
+  await taskModal.locator('.field').filter({ hasText: /^Integration$/ }).locator('input').fill('8');
+  await taskModal.locator('.ms-control').click();
+  await page.waitForTimeout(250);
+  await page.locator('.ms-panel .ms-option', { hasText: 'Launch new entities on the platform' }).click();
+  await taskModal.locator('.modal-title').click();
+  await page.waitForTimeout(200);
+  await taskModal.locator('.button', { hasText: '+ Add link' }).click();
+  await page.waitForTimeout(200);
+  await taskModal.locator('.link-row input').nth(0).fill('Jira INT-999');
+  await taskModal.locator('.link-row input').nth(1).fill('https://jira.example.com/browse/INT-999');
+  await taskModal.locator('.button', { hasText: '+ Add link' }).click();
+  await page.waitForTimeout(200);
+  await taskModal.locator('.link-row').nth(1).locator('input').nth(0).fill('Design doc');
+  await taskModal.locator('.link-row').nth(1).locator('input').nth(1).fill('https://docs.example.com/design');
+  await taskModal.locator('.button-primary', { hasText: 'Save task' }).click();
+  await page.waitForTimeout(1000);
+  const task = await page.evaluate(() => {
+    const i = window.RM.records('roadmapItems').find(r => r.title === 'Multi select change');
+    return i && i.tasks[0];
+  });
+  check('the task keeps its effort', task && task.days.dev === 12 && task.days.int === 8);
+  check('the task keeps several external links', task && task.links.length === 2);
+  check('the task keeps its OKR', task && task.okrIds.length === 1);
+
+  await page.locator('.tab', { hasText: 'Resources' }).click();
+  await page.waitForTimeout(400);
+  check('effort rolls up to the system change', (await page.locator('tfoot th').nth(1).innerText()).trim() === '23');
+  await page.locator('.modal .icon-button').first().click();
+  await page.waitForTimeout(400);
+  const programmeMeta = await page.locator('.gantt-row-programme', { hasText: 'UI Programme' }).locator('.row-meta').innerText();
+  check('effort rolls up to the programme', /23 d/.test(programmeMeta), programmeMeta);
+
+  console.log('\nConflict protection');
+  await page.evaluate(() => { window.RM.state.roadmapItems.revision = 1; });
+  await page.locator('.row-title', { hasText: 'Multi select change' }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator('.panel-footer .button-primary', { hasText: 'Edit' }).click();
+  await page.waitForTimeout(300);
+  await page.locator('.definition', { hasText: 'Title' }).first().locator('input').fill('Stale edit');
+  await page.locator('.panel-footer .button-primary', { hasText: 'Save changes' }).click();
+  await page.waitForTimeout(700);
+  const conflict = await page.locator('.modal').last().innerText();
+  check('a stale save shows the conflict dialog', /changed since you opened/i.test(conflict));
   await page.locator('.modal').last().locator('.button-primary').click();
-  await page.waitForTimeout(800);
-  check('reloading restores the saved title',
-    await page.locator('.row-title', { hasText: 'UI Test Change' }).count() === 1);
+  await page.waitForTimeout(900);
   check('the stale edit was not written', await page.locator('.row-title', { hasText: 'Stale edit' }).count() === 0);
 
-  // --- filters and chips
+  console.log('\nFilters and views');
   await page.locator('.search-input').first().fill('accreditation');
   await page.waitForTimeout(600);
   check('search filters the roadmap', await page.locator('.chip').count() >= 1);
   await page.locator('.chip-clear').click();
   await page.waitForTimeout(500);
-  check('Clear All removes the chips', await page.locator('.chip').count() === 0);
-
-  // --- collapse / expand
-  await page.locator('.button', { hasText: 'Collapse all' }).click();
+  const streamSelect = page.locator('.filter-row select').nth(6);
+  await streamSelect.selectOption({ label: 'B2B' });
+  await page.waitForTimeout(500);
+  check('a stream filter can be applied', await page.locator('.chip', { hasText: 'Stream' }).count() === 1);
+  await page.locator('.chip-clear').click();
   await page.waitForTimeout(400);
-  const collapsedRows = await page.locator('.gantt-row-item').count();
-  await page.locator('.button', { hasText: 'Expand all' }).click();
+  await page.locator('.segment', { hasText: 'Executive View' }).click();
   await page.waitForTimeout(400);
-  const expandedRows = await page.locator('.gantt-row-item').count();
-  check('collapse hides the system changes', collapsedRows === 0);
-  check('expand shows them again', expandedRows > 0);
+  check('executive view hides the system changes', await page.locator('.gantt-row-item').count() === 0);
+  await page.locator('.segment', { hasText: 'Detailed View' }).click();
+  await page.waitForTimeout(400);
 
-  // --- drag a bar
+  console.log('\nDragging');
   const bar = page.locator('.bar-item').first();
   const box = await bar.boundingBox();
-  const titleBefore = await page.evaluate(() => window.RM.records('roadmapItems')[0].startDate);
+  const before = await page.evaluate(() => window.RM.records('roadmapItems').find(r => r.id === 'RM-0001').startDate);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 95, box.y + box.height / 2, { steps: 12 });
   await page.mouse.up();
-  await page.waitForTimeout(1100);
-  const movedDates = await page.evaluate(() => {
-    const i = window.RM.records('roadmapItems').find(r => r.id === 'RM-0001');
-    return { start: i.startDate, end: i.endDate };
-  });
-  check('dragging a bar moves the dates', movedDates.start !== titleBefore, JSON.stringify(movedDates));
+  await page.waitForTimeout(1200);
+  const after = await page.evaluate(() => window.RM.records('roadmapItems').find(r => r.id === 'RM-0001').startDate);
+  check('dragging a bar moves the dates', before !== after, before + ' -> ' + after);
 
-  // --- backlog promote
+  console.log('\nBacklog');
   await page.locator('.nav-link', { hasText: 'Backlog' }).click();
   await page.waitForTimeout(500);
   await page.locator('.link-button', { hasText: 'Move to Roadmap' }).first().click();
@@ -145,20 +203,15 @@ function check(name, ok, detail) {
   await promo.locator('.field', { hasText: 'Start date' }).locator('input').fill('2027-04-01');
   await promo.locator('.field', { hasText: 'End date' }).locator('input').fill('2027-06-30');
   await promo.locator('.button-primary').click();
-  await page.waitForTimeout(1000);
-  check('promoting opens the new roadmap item', await page.locator('.detail-title').count() === 1);
+  await page.waitForTimeout(1100);
+  check('promoting opens the new system change', await page.locator('.detail-title').count() === 1);
   await page.locator('.modal .icon-button').first().click();
   await page.waitForTimeout(400);
-  await page.locator('.nav-link', { hasText: 'Backlog' }).click();
-  await page.waitForTimeout(500);
-  await page.locator('select').last().selectOption('promoted');
-  await page.waitForTimeout(400);
-  check('the promoted backlog item is marked', await page.locator('.pill-success', { hasText: 'On roadmap' }).count() === 1);
 
-  // --- dependency creation
+  console.log('\nDependencies');
   await page.locator('.nav-link', { hasText: 'Dependencies' }).click();
   await page.waitForTimeout(500);
-  const before = await page.locator('.table tbody tr').count();
+  const rowsBefore = await page.locator('.table tbody tr').count();
   await page.locator('.button', { hasText: '+ New Dependency' }).click();
   await page.waitForTimeout(300);
   const depModal = page.locator('.modal').last();
@@ -166,28 +219,67 @@ function check(name, ok, detail) {
   await depModal.locator('select').nth(1).selectOption({ index: 2 });
   await depModal.locator('.button-primary').click();
   await page.waitForTimeout(900);
-  check('a dependency can be created from the register',
-    await page.locator('.table tbody tr').count() === before + 1);
-
-  // --- settings save
-  await page.locator('.nav-link', { hasText: 'Settings' }).click();
+  check('a dependency can be created', await page.locator('.table tbody tr').count() === rowsBefore + 1);
+  await page.locator('.segment', { hasText: 'Map' }).click();
   await page.waitForTimeout(600);
-  const addInput = page.locator('.option-add .input').first();
-  await addInput.fill('Warehouse System');
-  await page.locator('.option-add .button').first().click();
-  await page.waitForTimeout(250);
-  await page.locator('.sticky-actions .button-primary').click();
-  await page.waitForTimeout(900);
-  const hasSystem = await page.evaluate(() => window.RM.settings().systems.some(s => s.name === 'Warehouse System'));
-  check('a new system is saved in settings', hasSystem);
+  check('the dependency map draws nodes', await page.locator('.map-node').count() > 0);
 
-  // --- data screen export
+  console.log('\nResources');
+  await page.locator('.nav-link', { hasText: 'Resources' }).click();
+  await page.waitForTimeout(800);
+  check('the capacity plan is a monthly grid', await page.locator('.cell-input').count() > 20);
+  const cell = page.locator('.cell-input').first();
+  await cell.fill('2.5');
+  await cell.dispatchEvent('change');
+  await page.locator('.button-primary', { hasText: 'Save capacity plan' }).click();
+  await page.waitForTimeout(1000);
+  const savedCell = await page.evaluate(() => {
+    const s = window.RM.records('resourceScenarios').find(x => x.active) || window.RM.records('resourceScenarios')[0];
+    const stream = Object.keys(s.allocations)[0];
+    const type = Object.keys(s.allocations[stream])[0];
+    const months = Object.keys(s.allocations[stream][type]).sort();
+    return s.allocations[stream][type][months[0]];
+  });
+  check('a capacity cell is saved', typeof savedCell === 'number', String(savedCell));
+  await page.locator('.segment', { hasText: 'Demand vs capacity' }).click();
+  await page.waitForTimeout(800);
+  check('demand is shown against capacity', await page.locator('.cell-demand-value').count() > 0);
+  await page.locator('.segment', { hasText: 'Standard estimate' }).click();
+  await page.waitForTimeout(600);
+  check('the demand source can be switched', await page.locator('.segment-active', { hasText: 'Standard estimate' }).count() === 1);
+
+  console.log('\nSettings');
+  await page.locator('.nav-link', { hasText: 'Settings' }).click();
+  await page.waitForTimeout(500);
+  check('settings asks for the password', await page.locator('input[type=password]').count() === 1);
+  await page.locator('input[type=password]').fill('wrong');
+  await page.locator('.button-primary', { hasText: 'Unlock settings' }).click();
+  await page.waitForTimeout(700);
+  check('a wrong password is refused', (await page.locator('.field-error').innerText()).length > 0);
+  await page.locator('input[type=password]').fill('Brompton2026');
+  await page.locator('.button-primary', { hasText: 'Unlock settings' }).click();
+  await page.waitForTimeout(900);
+  check('the right password opens settings', await page.locator('.panel-title', { hasText: 'OKRs' }).count() === 1);
+  check('the two resource levels are editable',
+    await page.locator('.panel-title', { hasText: 'Resource streams (level 2)' }).count() === 1);
+  const okrPanel = page.locator('.panel', { hasText: 'OKRs' }).last();
+  await okrPanel.locator('.option-add input').last().fill('New objective');
+  await okrPanel.locator('.option-add .button').last().click();
+  await page.waitForTimeout(300);
+  await page.locator('.sticky-actions .button-primary').click();
+  await page.waitForTimeout(1000);
+  check('a new objective is saved', await page.evaluate(() => window.RM.settings().okrs.some(o => o.name === 'New objective')));
+  await page.locator('.button', { hasText: 'Lock settings' }).click();
+  await page.waitForTimeout(500);
+  check('settings can be locked again', await page.locator('input[type=password]').count() === 1);
+
+  console.log('\nData');
   await page.locator('.nav-link', { hasText: 'Data' }).click();
   await page.waitForTimeout(700);
   const download = page.waitForEvent('download');
-  await page.locator('.button', { hasText: 'Export Complete JSON Backup' }).click();
+  await page.locator('.button', { hasText: 'Export Tasks CSV' }).click();
   const file = await download;
-  check('the complete JSON export downloads', /RoadmapBackup_.*\.json/.test(file.suggestedFilename()), file.suggestedFilename());
+  check('the task register exports', /tasks_.*\.csv/.test(file.suggestedFilename()), file.suggestedFilename());
 
   console.log('\nconsole errors: ' + JSON.stringify(errors));
   console.log(pass + ' passed, ' + fail + ' failed');

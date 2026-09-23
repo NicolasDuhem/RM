@@ -315,6 +315,7 @@
     const handle = RM.modal({
       title: isNew ? 'New dependency' : 'Edit dependency ' + dependency.id,
       size: 'medium',
+      dismissible: false,
       body: form.element,
       footer: [
         RM.button('Cancel', function () { handle.close(); }),

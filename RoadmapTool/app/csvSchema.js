@@ -36,9 +36,10 @@ function baseSchema(dataset) {
         col('Programme Id', 'programmeId'),
         col('Title', 'title'),
         col('Short Title', 'shortTitle'),
-        option('System', 'systemArea', 'systems'),
+        options('Systems', 'systemAreas', 'systems'),
         col('Sub Area', 'subArea'),
-        option('Type', 'type', 'itemTypes'),
+        options('Types', 'types', 'itemTypes'),
+        option('Stream', 'stream', 'resourceStreams'),
         option('Status', 'status', 'statuses'),
         option('Priority', 'priority', 'priorities'),
         option('Current Phase', 'currentPhase', 'milestoneTypes'),
@@ -52,9 +53,6 @@ function baseSchema(dataset) {
         col('Description', 'description'),
         col('Business Outcome', 'businessOutcome'),
         col('Problem Statement', 'problemStatement'),
-        col('Scope', 'scope'),
-        col('Out Of Scope', 'outOfScope'),
-        col('Assumptions', 'assumptions'),
         col('System Dependencies', 'systemDependencies'),
         col('Business Dependencies', 'businessDependencies'),
         col('Data Dependencies', 'dataDependencies'),
@@ -104,6 +102,7 @@ function baseSchema(dataset) {
 }
 
 function col(header, field) { return { header: header, field: field, kind: 'text' }; }
+function options(header, field, listName) { return { header: header, field: field, kind: 'options', list: listName }; }
 function date(header, field) { return { header: header, field: field, kind: 'date' }; }
 function bool(header, field) { return { header: header, field: field, kind: 'bool' }; }
 function option(header, field, listName) { return { header: header, field: field, kind: 'option', list: listName }; }
@@ -163,6 +162,10 @@ function toCell(column, record, settings) {
   switch (column.kind) {
     case 'bool': return raw ? 'Yes' : 'No';
     case 'option': return optionName(settings, column.list, raw);
+    case 'options':
+      return (Array.isArray(raw) ? raw : (raw ? [raw] : []))
+        .map(function (id) { return optionName(settings, column.list, id); })
+        .join('; ');
     case 'number': return raw === undefined || raw === null || raw === '' ? '' : String(raw);
     default: return raw === undefined || raw === null ? '' : String(raw);
   }
@@ -173,6 +176,11 @@ function fromCell(column, value, settings) {
   switch (column.kind) {
     case 'bool': return /^(yes|true|y|1)$/i.test(text);
     case 'option': return optionId(settings, column.list, text);
+    case 'options':
+      return text
+        .split(/\s*[;|]\s*/)
+        .filter(Boolean)
+        .map(function (part) { return optionId(settings, column.list, part); });
     case 'number': {
       if (!text) return 0;
       const n = Number(text);
@@ -182,8 +190,32 @@ function fromCell(column, value, settings) {
   }
 }
 
+/**
+ * Tasks live inside their roadmap item, so they get a flattened export of
+ * their own. There is no task CSV import - tasks are edited on the item.
+ */
+function taskColumns(settings) {
+  const resourceTypes = (settings && Array.isArray(settings.resourceTypes)) ? settings.resourceTypes : [];
+  return [
+    col('Task Id', 'id'),
+    col('Roadmap Item Id', 'roadmapItemId'),
+    col('Roadmap Item', 'roadmapItemTitle'),
+    col('Programme', 'programmeName'),
+    col('Task', 'name'),
+    option('Status', 'status', 'statuses'),
+    col('Owner', 'owner'),
+    option('Stream', 'stream', 'resourceStreams'),
+    col('OKRs', 'okrNames'),
+    col('Links', 'linkText'),
+    col('Description', 'description')
+  ].concat(resourceTypes.map(function (type) {
+    return { header: type.name + ' Days', field: 'days.' + type.id, kind: 'number' };
+  }));
+}
+
 module.exports = {
   schemaFor: schemaFor,
+  taskColumns: taskColumns,
   toCell: toCell,
   fromCell: fromCell,
   getPath: getPath,

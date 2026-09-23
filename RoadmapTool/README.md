@@ -2,8 +2,8 @@
 
 A standalone, portable roadmap management tool. One central roadmap grouped by
 **programme** (a business outcome), with the individual **system changes**
-underneath it, plus dependencies, dates, ownership, scope, risks, tickets and
-resource estimates.
+underneath it and the tasks under those, plus dependencies, dates, ownership,
+risks, OKRs and the resource each task needs.
 
 Everything lives in this one folder:
 
@@ -76,11 +76,11 @@ The data files are:
 
 ```
 data/programmes.json          Programmes / business subjects
-data/roadmap-items.json       System changes, with scope, risks, tickets, milestones
+data/roadmap-items.json       System changes, with their tasks, risks and milestones
 data/dependencies.json        Links between system changes
 data/backlog.json             Date-free master backlog
-data/resource-scenarios.json  Capacity scenarios
-data/settings.json            Systems, statuses, priorities, quarters, port, ...
+data/resource-scenarios.json  Monthly capacity plans, per stream and discipline
+data/settings.json            Systems, statuses, priorities, streams, OKRs, quarters, port, ...
 data/audit.json               Lightweight change history
 ```
 
@@ -98,10 +98,13 @@ Each file carries a `revision` number and an `updatedAt` stamp:
 
 ## How the roadmap is structured
 
+Three levels:
+
 ```
 PROGRAMME  (a business outcome)
-    SYSTEM CHANGE
-    SYSTEM CHANGE
+    SYSTEM CHANGE  (a deliverable, with dates)
+        TASK       (the work, and where effort is recorded)
+        TASK
     SYSTEM CHANGE
 ```
 
@@ -110,6 +113,9 @@ For example:
 ```
 Customer / Dealer Master & Accreditation
     Salesforce Accreditation Model
+        Create the accreditation object          PO 2  Dev 8
+        Migrate the accreditation spreadsheet    PO 1  Dev 2  Data 6
+        Publish accreditation to the platform    PO 1  Dev 3  Int 6
     Platform Accreditation Matrix
     BPP Product Eligibility Restriction
 ```
@@ -118,27 +124,72 @@ Customer / Dealer Master & Accreditation
 start date of its children and ends at the latest end date. A programme with no
 dated children simply shows *Not scheduled*.
 
+**Effort is never typed in twice either.** It is recorded on tasks and adds up
+to the system change, and again to the programme.
+
+A task has a name, status, owner, description, the OKRs it affects, any number
+of external links (a Jira ticket, a document, a design) and the days required
+per discipline. Tasks have no dates of their own: they run with the system
+change above them. Expand a system change on the roadmap with the small arrow
+to see its tasks.
+
 ---
 
 ## The screens
 
 | Screen           | What it is for                                                          |
 |------------------|-------------------------------------------------------------------------|
-| **Roadmap**      | The Gantt. Executive View (programmes only) or Detailed View (everything). |
+| **Roadmap**      | The Gantt. Executive View (programmes only) or Detailed View (everything, down to tasks). |
 | **Dependencies** | The dependency register (table) and the dependency map (diagram).        |
 | **Backlog**      | Date-free requirements, and *Move to Roadmap* when they are ready.       |
-| **Resources**    | Estimated demand per month against a capacity scenario.                  |
+| **Resources**    | The monthly capacity plan, and demand against it.                        |
 | **Data**         | Backup, export, import, restore, and the change history.                 |
-| **Settings**     | Systems, statuses, priorities, milestone types, quarters, port and more. |
+| **Settings**     | Systems, statuses, priorities, streams, OKRs, quarters, port and more. Password protected. |
 
-Click any bar or title on the roadmap to open **More Info**: summary, scope,
+Click any bar or title on the roadmap to open the record panel: summary, tasks,
 dependencies, risks and decisions, delivery (Fast MVP versus Standard), the
-resource estimates, milestones, tickets, and that item's history.
+resource roll-up, milestones, and that item's history.
+
+**Reading and editing use the same layout.** Press *Edit* and the values in
+front of you turn into inputs, in exactly the same places - nothing jumps
+around and nothing is hidden behind a separate form. Creating a programme or a
+system change opens that same panel, already in edit mode. Nothing is stored
+until you press Save.
+
+A system change can belong to several **systems** and be of several **types**;
+both are multi-select.
 
 Dragging a bar (or its edges) changes the start and end dates. It goes through
-exactly the same save as the form, so it gets the same protection.
+exactly the same save as the panel, so it gets the same protection.
 
 ---
+
+## Resources: capacity and demand
+
+Capacity has two levels:
+
+```
+DISCIPLINE (level 1)        Product Owner, Development, Integration, Data Engineering
+    STREAM (level 2)        B2B, D2C, NetSuite / ERP, CSI, ...
+```
+
+On **Resources -> Capacity plan** you fill in, per stream, per discipline and
+per month, how much resource you have, in FTE. That grid *is* the scenario. Use
+the arrow button on a row to copy the first month across, then adjust the months
+that differ. Duplicate a scenario to compare "what we have" with "what we would
+need".
+
+**Resources -> Demand vs capacity** puts the effort recorded on tasks against
+that plan. Each task's days are spread evenly across the dates of the system
+change it belongs to, and counted against the stream on the task (or, if the
+task has none, the stream on the system change). Every cell shows
+`demand / capacity` in days; red means demand is above what is planned.
+
+The demand source can be switched between the task plan and the Fast MVP or
+Standard estimates, so you can see the difference between the plan and either
+sizing. Nothing here moves a date - it is decision support only.
+
+One FTE is 21 working days per month by default; change that in Settings.
 
 ## Multiple people editing
 
@@ -161,6 +212,17 @@ deliberately simpler than automatic merging.
 Nothing autosaves. Edits are made in a form and stored when you press **Save**.
 
 ---
+
+## The Settings password
+
+The Settings screen asks for a password (**Brompton2026** out of the box,
+changeable in Settings). It stops the lists the whole roadmap depends on -
+statuses, systems, streams, OKRs - from being changed by accident.
+
+It is a speed bump, not a login: the application still has no user accounts,
+and anybody who can reach it can edit the roadmap itself. Unlocking lasts for
+that browser tab only; *Lock settings* ends it immediately. Clearing the
+password in Settings removes the prompt altogether.
 
 ## Backups and recovery
 
@@ -190,8 +252,9 @@ on the Data screen, names the file, and points at the most recent valid backup.
   *Data -> Import Complete JSON Backup*.
 
 CSV export and import are available per dataset for people who want to work in
-Excel. A CSV import is validated in full first: if any row is wrong, **nothing**
-is imported and the offending rows are listed.
+Excel, plus an export-only **task register** that flattens every task under
+every system change into one sheet. A CSV import is validated in full first: if
+any row is wrong, **nothing** is imported and the offending rows are listed.
 
 ---
 
@@ -214,9 +277,10 @@ node tests/run-tests.js
 ```
 
 This runs the API and data-safety tests (ids, validation, conflict protection,
-cascade delete, backlog promotion, CSV round trip, backup and restore, corrupt
-file handling). It works on a throwaway copy of the application in the system
-temp folder and never touches your `data/` folder.
+cascade delete, backlog promotion, tasks and their effort, monthly capacity,
+the settings password, CSV round trip, backup and restore, corrupt file
+handling). It works on a throwaway copy of the application in the system temp
+folder and never touches your `data/` folder.
 
 `tests/browser-tests.js` additionally drives the real user interface. It is
 optional and needs Playwright installed; point it at a **test copy** of the

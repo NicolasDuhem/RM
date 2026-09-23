@@ -1,15 +1,22 @@
 {
   "revision": 1,
-  "updatedAt": "2026-09-22T14:25:44.538Z",
+  "updatedAt": "2026-09-23T04:55:03.812Z",
   "records": [
     {
       "id": "RM-0001",
       "programmeId": "PRG-0001",
       "title": "Salesforce Accreditation Model",
       "shortTitle": "Salesforce accreditation",
-      "systemArea": "salesforce",
+      "systemAreas": [
+        "salesforce",
+        "bpp"
+      ],
       "subArea": "Accreditation",
-      "type": "system-change",
+      "types": [
+        "system-change",
+        "data-change"
+      ],
+      "stream": "b2b",
       "startDate": "2026-09-01",
       "endDate": "2026-10-31",
       "targetDate": "2026-10-31",
@@ -23,9 +30,6 @@
       "description": "Data model in Salesforce holding the accreditation each dealer holds, with effective dates.",
       "businessOutcome": "One authoritative record of what a dealer is accredited for.",
       "problemStatement": "Accreditation is held in spreadsheets and is not visible to the ordering platform.",
-      "scope": "Accreditation object, dealer relationship, effective dating, audit of change.",
-      "outOfScope": "Automated training/certification tracking.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -70,30 +74,77 @@
           "status": "open"
         }
       ],
-      "tickets": [
+      "tasks": [
         {
-          "id": "TKT-0001",
+          "id": "TSK-0001",
           "roadmapItemId": "RM-0001",
-          "title": "Create Accreditation object",
-          "description": "",
-          "system": "salesforce",
+          "name": "Create the accreditation object",
           "status": "build",
           "owner": "Nicolas",
-          "acceptanceCriteria": "",
-          "notes": "",
-          "externalReference": ""
+          "stream": "",
+          "okrIds": [
+            "kr-order-errors",
+            "kr-customer-master"
+          ],
+          "links": [
+            {
+              "label": "Jira BPP-1042",
+              "url": "https://jira.example.com/browse/BPP-1042"
+            }
+          ],
+          "days": {
+            "po": 2,
+            "dev": 8,
+            "int": 0,
+            "data": 0
+          },
+          "description": "Object, fields, effective dating and record-level history.",
+          "notes": ""
         },
         {
-          "id": "TKT-0002",
+          "id": "TSK-0002",
           "roadmapItemId": "RM-0001",
-          "title": "Migrate accreditation spreadsheet",
-          "description": "",
-          "system": "salesforce",
+          "name": "Migrate the accreditation spreadsheet",
           "status": "ready",
           "owner": "Data team",
-          "acceptanceCriteria": "",
-          "notes": "",
-          "externalReference": ""
+          "stream": "data-platform",
+          "okrIds": [
+            "kr-customer-master"
+          ],
+          "links": [
+            {
+              "label": "Jira BPP-1043",
+              "url": "https://jira.example.com/browse/BPP-1043"
+            }
+          ],
+          "days": {
+            "po": 1,
+            "dev": 2,
+            "int": 0,
+            "data": 6
+          },
+          "description": "Cleanse, map and load the current spreadsheet, with a dealer confirmation round.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0003",
+          "roadmapItemId": "RM-0001",
+          "name": "Publish accreditation to the platform",
+          "status": "definition",
+          "owner": "Integration team",
+          "stream": "b2b",
+          "okrIds": [
+            "kr-order-errors"
+          ],
+          "links": [],
+          "days": {
+            "po": 1,
+            "dev": 3,
+            "int": 6,
+            "data": 0
+          },
+          "description": "Expose accreditation to BPP so the catalogue can use it.",
+          "notes": ""
         }
       ],
       "gates": [],
@@ -120,9 +171,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -130,9 +181,14 @@
       "programmeId": "PRG-0001",
       "title": "Platform Accreditation Matrix",
       "shortTitle": "Accreditation matrix",
-      "systemArea": "bpp",
+      "systemAreas": [
+        "bpp"
+      ],
       "subArea": "Eligibility",
-      "type": "system-change",
+      "types": [
+        "system-change"
+      ],
+      "stream": "b2b",
       "startDate": "2026-10-15",
       "endDate": "2026-12-15",
       "targetDate": "2026-12-15",
@@ -146,9 +202,6 @@
       "description": "Matrix mapping accreditation to product categories and channels.",
       "businessOutcome": "A maintainable rule set rather than hard-coded restrictions.",
       "problemStatement": "",
-      "scope": "Matrix maintenance screen, versioning, publication to the platform.",
-      "outOfScope": "Per-dealer pricing.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -175,7 +228,51 @@
         }
       ],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0004",
+          "roadmapItemId": "RM-0002",
+          "name": "Matrix data model",
+          "status": "definition",
+          "owner": "Jake",
+          "stream": "b2b",
+          "okrIds": [
+            "kr-order-errors"
+          ],
+          "links": [],
+          "days": {
+            "po": 2,
+            "dev": 6,
+            "int": 0,
+            "data": 1
+          },
+          "description": "Category to accreditation mapping with versioning.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0005",
+          "roadmapItemId": "RM-0002",
+          "name": "Matrix maintenance screen",
+          "status": "idea",
+          "owner": "Jake",
+          "stream": "b2b",
+          "okrIds": [],
+          "links": [
+            {
+              "label": "Jira BPP-1102",
+              "url": "https://jira.example.com/browse/BPP-1102"
+            }
+          ],
+          "days": {
+            "po": 3,
+            "dev": 10,
+            "int": 1,
+            "data": 0
+          },
+          "description": "Screen for the commercial team to maintain the matrix without IT.",
+          "notes": ""
+        }
+      ],
       "gates": [],
       "estimates": {
         "fast": {
@@ -200,9 +297,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -210,9 +307,15 @@
       "programmeId": "PRG-0001",
       "title": "BPP Product Eligibility Restriction",
       "shortTitle": "BPP restriction",
-      "systemArea": "bpp",
+      "systemAreas": [
+        "bpp",
+        "bigcommerce"
+      ],
       "subArea": "Catalogue",
-      "type": "system-change",
+      "types": [
+        "system-change"
+      ],
+      "stream": "b2b",
       "startDate": "2026-12-01",
       "endDate": "2027-02-15",
       "targetDate": "2027-02-15",
@@ -226,9 +329,6 @@
       "description": "Apply the accreditation matrix to the catalogue so ineligible products are not orderable.",
       "businessOutcome": "Dealers cannot order products they are not accredited for.",
       "problemStatement": "",
-      "scope": "Catalogue filtering, basket validation, clear messaging to the dealer.",
-      "outOfScope": "Retrospective validation of historic orders.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -255,7 +355,46 @@
         }
       ],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0006",
+          "roadmapItemId": "RM-0003",
+          "name": "Catalogue filtering",
+          "status": "ready",
+          "owner": "Jake",
+          "stream": "b2b",
+          "okrIds": [
+            "kr-order-errors"
+          ],
+          "links": [],
+          "days": {
+            "po": 2,
+            "dev": 9,
+            "int": 2,
+            "data": 0
+          },
+          "description": "Hide products the dealer is not accredited for.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0007",
+          "roadmapItemId": "RM-0003",
+          "name": "Basket and order validation",
+          "status": "idea",
+          "owner": "Jake",
+          "stream": "b2b",
+          "okrIds": [],
+          "links": [],
+          "days": {
+            "po": 2,
+            "dev": 7,
+            "int": 3,
+            "data": 0
+          },
+          "description": "Re-check eligibility at basket and order submission.",
+          "notes": ""
+        }
+      ],
       "gates": [
         {
           "id": "GAT-0001",
@@ -292,9 +431,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -302,9 +441,15 @@
       "programmeId": "PRG-0002",
       "title": "Product Data Definition",
       "shortTitle": "Product data definition",
-      "systemArea": "data",
+      "systemAreas": [
+        "data",
+        "pim"
+      ],
       "subArea": "Master data",
-      "type": "discovery",
+      "types": [
+        "discovery"
+      ],
+      "stream": "data-platform",
       "startDate": "2026-09-15",
       "endDate": "2026-11-30",
       "targetDate": "2026-11-30",
@@ -318,9 +463,6 @@
       "description": "Define the product master attributes, ownership and the golden source for each attribute.",
       "businessOutcome": "Agreed definition of product data before any PIM investment.",
       "problemStatement": "",
-      "scope": "Attribute catalogue, ownership, source system per attribute.",
-      "outOfScope": "Tool selection.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -347,7 +489,48 @@
         }
       ],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0008",
+          "roadmapItemId": "RM-0004",
+          "name": "Attribute catalogue workshops",
+          "status": "discovery",
+          "owner": "Sarah",
+          "stream": "data-platform",
+          "okrIds": [
+            "kr-product-master"
+          ],
+          "links": [],
+          "days": {
+            "po": 8,
+            "dev": 0,
+            "int": 0,
+            "data": 2
+          },
+          "description": "Workshops per product family to agree the attribute list and owners.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0009",
+          "roadmapItemId": "RM-0004",
+          "name": "Profile the current data",
+          "status": "discovery",
+          "owner": "Data team",
+          "stream": "data-platform",
+          "okrIds": [
+            "kr-product-master"
+          ],
+          "links": [],
+          "days": {
+            "po": 1,
+            "dev": 0,
+            "int": 0,
+            "data": 6
+          },
+          "description": "Measure completeness and conflicts across the current sources.",
+          "notes": ""
+        }
+      ],
       "gates": [],
       "estimates": {
         "fast": {
@@ -372,9 +555,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -382,9 +565,15 @@
       "programmeId": "PRG-0002",
       "title": "Translation Management Source",
       "shortTitle": "Translation source",
-      "systemArea": "pim",
+      "systemAreas": [
+        "pim",
+        "bigcommerce"
+      ],
       "subArea": "Localisation",
-      "type": "system-change",
+      "types": [
+        "system-change"
+      ],
+      "stream": "d2c",
       "startDate": "2026-11-01",
       "endDate": "2027-01-31",
       "targetDate": "2027-01-31",
@@ -398,9 +587,6 @@
       "description": "Decide and implement where translations are mastered and how they are published.",
       "businessOutcome": "Localised content without manual spreadsheet rounds.",
       "problemStatement": "",
-      "scope": "Translation source, workflow, publication to commerce channels.",
-      "outOfScope": "Machine translation quality tooling.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -412,7 +598,48 @@
       "currentPhase": "idea",
       "milestones": [],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0010",
+          "roadmapItemId": "RM-0005",
+          "name": "Translation source decision",
+          "status": "idea",
+          "owner": "Sarah",
+          "stream": "d2c",
+          "okrIds": [
+            "kr-time-to-publish"
+          ],
+          "links": [],
+          "days": {
+            "po": 4,
+            "dev": 0,
+            "int": 0,
+            "data": 0
+          },
+          "description": "Compare PIM-managed translation against the current process.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0011",
+          "roadmapItemId": "RM-0005",
+          "name": "Publish translations to commerce",
+          "status": "idea",
+          "owner": "Sarah",
+          "stream": "d2c",
+          "okrIds": [
+            "kr-time-to-publish"
+          ],
+          "links": [],
+          "days": {
+            "po": 2,
+            "dev": 9,
+            "int": 5,
+            "data": 1
+          },
+          "description": "Feed translated content into the commerce channels.",
+          "notes": ""
+        }
+      ],
       "gates": [],
       "estimates": {
         "fast": {
@@ -437,9 +664,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -447,9 +674,14 @@
       "programmeId": "PRG-0002",
       "title": "PIM Evaluation",
       "shortTitle": "PIM evaluation",
-      "systemArea": "pim",
+      "systemAreas": [
+        "pim"
+      ],
       "subArea": "Tooling",
-      "type": "discovery",
+      "types": [
+        "discovery"
+      ],
+      "stream": "data-platform",
       "startDate": "2027-01-01",
       "endDate": "2027-03-31",
       "targetDate": "2027-03-31",
@@ -463,9 +695,6 @@
       "description": "Evaluate PIM options against the agreed product data definition.",
       "businessOutcome": "An evidence-based recommendation on PIM.",
       "problemStatement": "",
-      "scope": "Requirements, vendor comparison, cost model, recommendation.",
-      "outOfScope": "Implementation.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -477,7 +706,28 @@
       "currentPhase": "idea",
       "milestones": [],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0012",
+          "roadmapItemId": "RM-0006",
+          "name": "Requirements and vendor long list",
+          "status": "idea",
+          "owner": "Sarah",
+          "stream": "data-platform",
+          "okrIds": [
+            "kr-product-master"
+          ],
+          "links": [],
+          "days": {
+            "po": 6,
+            "dev": 0,
+            "int": 0,
+            "data": 1
+          },
+          "description": "",
+          "notes": ""
+        }
+      ],
       "gates": [],
       "estimates": {
         "fast": {
@@ -502,9 +752,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -512,9 +762,15 @@
       "programmeId": "PRG-0003",
       "title": "NetSuite Sales Order Integration",
       "shortTitle": "NetSuite orders",
-      "systemArea": "netsuite",
+      "systemAreas": [
+        "netsuite",
+        "integration"
+      ],
       "subArea": "Order to cash",
-      "type": "integration",
+      "types": [
+        "integration"
+      ],
+      "stream": "netsuite-erp",
       "startDate": "2026-09-01",
       "endDate": "2026-11-30",
       "targetDate": "2026-11-30",
@@ -528,9 +784,6 @@
       "description": "Post platform orders into NetSuite with entity, pricing and tax handling.",
       "businessOutcome": "Orders reach finance without rekeying.",
       "problemStatement": "",
-      "scope": "Order posting, acknowledgement, error handling and retry, entity mapping.",
-      "outOfScope": "Returns and credit notes.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -575,18 +828,69 @@
           "status": "open"
         }
       ],
-      "tickets": [
+      "tasks": [
         {
-          "id": "TKT-0003",
+          "id": "TSK-0013",
           "roadmapItemId": "RM-0007",
-          "title": "Order payload mapping",
-          "description": "",
-          "system": "netsuite",
+          "name": "Order payload mapping",
           "status": "build",
           "owner": "Integration team",
-          "acceptanceCriteria": "",
-          "notes": "",
-          "externalReference": ""
+          "stream": "netsuite-erp",
+          "okrIds": [
+            "kr-no-rekeying"
+          ],
+          "links": [
+            {
+              "label": "Jira INT-320",
+              "url": "https://jira.example.com/browse/INT-320"
+            }
+          ],
+          "days": {
+            "po": 2,
+            "dev": 6,
+            "int": 12,
+            "data": 0
+          },
+          "description": "Map the platform order to the NetSuite sales order.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0014",
+          "roadmapItemId": "RM-0007",
+          "name": "Error handling and retry",
+          "status": "ready",
+          "owner": "Integration team",
+          "stream": "netsuite-erp",
+          "okrIds": [
+            "kr-no-rekeying"
+          ],
+          "links": [],
+          "days": {
+            "po": 1,
+            "dev": 4,
+            "int": 8,
+            "data": 0
+          },
+          "description": "Retry, alerting and a visible failure queue.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0015",
+          "roadmapItemId": "RM-0007",
+          "name": "Tax per entity",
+          "status": "definition",
+          "owner": "Finance",
+          "stream": "netsuite-erp",
+          "okrIds": [],
+          "links": [],
+          "days": {
+            "po": 3,
+            "dev": 5,
+            "int": 4,
+            "data": 0
+          },
+          "description": "Confirm and configure tax treatment per entity.",
+          "notes": ""
         }
       ],
       "gates": [],
@@ -613,9 +917,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -623,9 +927,15 @@
       "programmeId": "PRG-0003",
       "title": "NetSuite Stock Integration",
       "shortTitle": "NetSuite stock",
-      "systemArea": "netsuite",
+      "systemAreas": [
+        "netsuite",
+        "integration"
+      ],
       "subArea": "Inventory",
-      "type": "integration",
+      "types": [
+        "integration"
+      ],
+      "stream": "netsuite-erp",
       "startDate": "2026-10-15",
       "endDate": "2026-12-15",
       "targetDate": "2026-12-15",
@@ -639,9 +949,6 @@
       "description": "Publish inventory from NetSuite to the platform on a reliable schedule.",
       "businessOutcome": "Dealers see availability that reflects the warehouse.",
       "problemStatement": "",
-      "scope": "Inventory feed, per-entity stock, availability calculation.",
-      "outOfScope": "Allocation and reservation logic.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -668,7 +975,48 @@
         }
       ],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0016",
+          "roadmapItemId": "RM-0008",
+          "name": "Inventory feed",
+          "status": "definition",
+          "owner": "Integration team",
+          "stream": "netsuite-erp",
+          "okrIds": [
+            "kr-availability"
+          ],
+          "links": [],
+          "days": {
+            "po": 2,
+            "dev": 6,
+            "int": 10,
+            "data": 2
+          },
+          "description": "Scheduled per-entity stock feed into the platform.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0017",
+          "roadmapItemId": "RM-0008",
+          "name": "Availability calculation",
+          "status": "idea",
+          "owner": "Jake",
+          "stream": "b2b",
+          "okrIds": [
+            "kr-availability"
+          ],
+          "links": [],
+          "days": {
+            "po": 2,
+            "dev": 7,
+            "int": 2,
+            "data": 2
+          },
+          "description": "Turn raw stock into a published availability figure.",
+          "notes": ""
+        }
+      ],
       "gates": [],
       "estimates": {
         "fast": {
@@ -693,9 +1041,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -703,9 +1051,15 @@
       "programmeId": "PRG-0003",
       "title": "USA Entity Rollout",
       "shortTitle": "USA rollout",
-      "systemArea": "bpp",
+      "systemAreas": [
+        "bpp",
+        "netsuite"
+      ],
       "subArea": "Rollout",
-      "type": "rollout",
+      "types": [
+        "rollout"
+      ],
+      "stream": "b2b",
       "startDate": "2026-12-01",
       "endDate": "2027-02-28",
       "targetDate": "2027-02-28",
@@ -719,9 +1073,6 @@
       "description": "Enable the USA entity on the platform with local pricing, tax and logistics.",
       "businessOutcome": "USA dealers ordering through the same platform.",
       "problemStatement": "",
-      "scope": "Entity configuration, pricing, tax, shipping, dealer onboarding.",
-      "outOfScope": "Local marketing site changes.",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -748,7 +1099,48 @@
         }
       ],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0018",
+          "roadmapItemId": "RM-0009",
+          "name": "Entity configuration",
+          "status": "ready",
+          "owner": "Jake",
+          "stream": "b2b",
+          "okrIds": [
+            "kr-new-entities"
+          ],
+          "links": [],
+          "days": {
+            "po": 3,
+            "dev": 6,
+            "int": 4,
+            "data": 1
+          },
+          "description": "Pricing, tax, shipping and payment configuration for the USA entity.",
+          "notes": ""
+        },
+        {
+          "id": "TSK-0019",
+          "roadmapItemId": "RM-0009",
+          "name": "Dealer onboarding",
+          "status": "idea",
+          "owner": "Operations",
+          "stream": "shared",
+          "okrIds": [
+            "kr-new-entities"
+          ],
+          "links": [],
+          "days": {
+            "po": 5,
+            "dev": 1,
+            "int": 1,
+            "data": 0
+          },
+          "description": "Onboard the pilot dealer group and then the rest.",
+          "notes": ""
+        }
+      ],
       "gates": [],
       "estimates": {
         "fast": {
@@ -773,9 +1165,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -783,9 +1175,14 @@
       "programmeId": "PRG-0003",
       "title": "Singapore Rollout",
       "shortTitle": "Singapore rollout",
-      "systemArea": "bpp",
+      "systemAreas": [
+        "bpp"
+      ],
       "subArea": "Rollout",
-      "type": "rollout",
+      "types": [
+        "rollout"
+      ],
+      "stream": "b2b",
       "startDate": "2027-03-01",
       "endDate": "2027-05-31",
       "targetDate": "2027-05-31",
@@ -799,9 +1196,6 @@
       "description": "Enable the Singapore entity on the platform.",
       "businessOutcome": "APAC dealers ordering through the same platform.",
       "problemStatement": "",
-      "scope": "Entity configuration, localisation, dealer onboarding.",
-      "outOfScope": "",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -813,7 +1207,28 @@
       "currentPhase": "idea",
       "milestones": [],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0020",
+          "roadmapItemId": "RM-0010",
+          "name": "Entity configuration",
+          "status": "idea",
+          "owner": "Jake",
+          "stream": "b2b",
+          "okrIds": [
+            "kr-new-entities"
+          ],
+          "links": [],
+          "days": {
+            "po": 3,
+            "dev": 5,
+            "int": 5,
+            "data": 1
+          },
+          "description": "",
+          "notes": ""
+        }
+      ],
       "gates": [],
       "estimates": {
         "fast": {
@@ -838,9 +1253,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -848,9 +1263,14 @@
       "programmeId": "PRG-0003",
       "title": "Japan Rollout",
       "shortTitle": "Japan rollout",
-      "systemArea": "bpp",
+      "systemAreas": [
+        "bpp"
+      ],
       "subArea": "Rollout",
-      "type": "rollout",
+      "types": [
+        "rollout"
+      ],
+      "stream": "b2b",
       "startDate": "2027-05-01",
       "endDate": "2027-08-31",
       "targetDate": "2027-08-31",
@@ -864,9 +1284,6 @@
       "description": "Enable the Japan entity on the platform, including local language.",
       "businessOutcome": "Japanese dealers ordering through the same platform.",
       "problemStatement": "",
-      "scope": "Entity configuration, translation, dealer onboarding.",
-      "outOfScope": "",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -878,7 +1295,28 @@
       "currentPhase": "idea",
       "milestones": [],
       "risks": [],
-      "tickets": [],
+      "tasks": [
+        {
+          "id": "TSK-0021",
+          "roadmapItemId": "RM-0011",
+          "name": "Entity configuration and translation",
+          "status": "idea",
+          "owner": "Jake",
+          "stream": "b2b",
+          "okrIds": [
+            "kr-new-entities"
+          ],
+          "links": [],
+          "days": {
+            "po": 4,
+            "dev": 6,
+            "int": 5,
+            "data": 1
+          },
+          "description": "",
+          "notes": ""
+        }
+      ],
       "gates": [],
       "estimates": {
         "fast": {
@@ -903,9 +1341,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     },
     {
@@ -913,9 +1351,15 @@
       "programmeId": "PRG-0004",
       "title": "Cross-entity Stock Visibility",
       "shortTitle": "Cross-entity stock",
-      "systemArea": "bpp",
+      "systemAreas": [
+        "bpp",
+        "netsuite"
+      ],
       "subArea": "Availability",
-      "type": "discovery",
+      "types": [
+        "discovery"
+      ],
+      "stream": "b2b",
       "startDate": "",
       "endDate": "",
       "targetDate": "",
@@ -929,9 +1373,6 @@
       "description": "Show availability across entities so a dealer can be served from another warehouse.",
       "businessOutcome": "Fewer lost orders when local stock is unavailable.",
       "problemStatement": "",
-      "scope": "To be defined.",
-      "outOfScope": "",
-      "assumptions": "",
       "systemDependencies": "",
       "businessDependencies": "",
       "dataDependencies": "",
@@ -943,7 +1384,7 @@
       "currentPhase": "idea",
       "milestones": [],
       "risks": [],
-      "tickets": [],
+      "tasks": [],
       "gates": [],
       "estimates": {
         "fast": {
@@ -968,9 +1409,9 @@
         }
       },
       "backlogId": "",
-      "createdAt": "2026-09-22T14:25:44.536Z",
+      "createdAt": "2026-09-23T04:55:03.810Z",
       "createdBy": "Sample data",
-      "updatedAt": "2026-09-22T14:25:44.536Z",
+      "updatedAt": "2026-09-23T04:55:03.810Z",
       "updatedBy": "Sample data"
     }
   ]
