@@ -48,7 +48,8 @@ rather than duplicated, so several people can draft into the same one.
 
 * A **programme** is a business outcome or a larger initiative.
 * A **system change** is a deliverable underneath a programme, and it carries the dates.
-* A **task** is the work underneath a system change, and it carries the effort.
+* A **task** is the work underneath a system change. It carries the effort
+  and its own dates, and together those drive the capacity view.
 
 **Never invent master data.** Statuses, priorities, systems, types,
 resource streams, resource types, milestone types, people and OKRs are
@@ -71,7 +72,12 @@ change and the programme add theirs up automatically.
 **Dates**
 
 * Written as `"YYYY-MM-DD"`, for example `"2027-03-01"`.
-* Only system changes have dates. Tasks run with the system change above them.
+* System changes and tasks both have dates. **Give every task its own**
+  **`startDate` and `endDate`** - the capacity view spreads a task's days
+  evenly across them, so tasks dated properly are what makes a heavy first
+  month look heavy. A task left without dates falls back to running across
+  the whole system change, which flattens the picture.
+* A task's dates normally sit inside its system change's dates.
 * `endDate` must be the same as, or after, `startDate`.
 * A programme never has dates: the tool works them out from its system changes.
 * If the timing is genuinely unknown, use `""` for both and say so in the notes.
@@ -187,6 +193,8 @@ master data, or with an empty string or list when nothing fits.
           "status": "<id from settings.statuses>",
           "owner": "<one name from either owner list, or empty>",
           "stream": "",
+          "startDate": "2027-03-01",
+          "endDate": "2027-03-31",
           "okrIds": [
             "<id from settings.okrs or their children>"
           ],
@@ -254,6 +262,8 @@ master data, or with an empty string or list when nothing fits.
 | `status` | no | An id from `settings.statuses`. |
 | `owner` | no | One name from either owner list, or `""`. |
 | `stream` | no | An id from `settings.resourceStreams`, only when it differs from the system change. |
+| `startDate` | yes in practice | When the task starts, `YYYY-MM-DD`. Drives the capacity view. |
+| `endDate` | yes in practice | When it finishes, `YYYY-MM-DD`. On or after `startDate`. |
 | `okrIds` | no | Ids from `settings.okrs` or their `children`. Prefer a key result when one fits. |
 | `links` | no | External links: `[{ "label": "Jira ABC-1", "url": "https://..." }]`. As many as needed. |
 | `days` | yes | Effort in days, keyed by the ids in `settings.resourceTypes`. |
@@ -309,6 +319,7 @@ everything else comes from the master data.
 * Every status, priority, system, type, stream, milestone name, OKR and person appears in the master data file, spelled exactly as it is there.
 * Nothing was invented to fill a gap; gaps are empty and explained in the notes.
 * Every task has `days`, keyed by the resource type ids.
+* Every task has its own `startDate` and `endDate`, inside its system change's dates.
 * Every system change names a programme.
 * Dates are `YYYY-MM-DD`, and no end date is before its start date.
 * It is valid JSON: double quotes throughout, no trailing commas, no comments.
@@ -318,7 +329,8 @@ everything else comes from the master data.
 > Here is our roadmap JSON guide and our master data file. Using only the
 > ids and names found in the master data, draft a programme called
 > "Dealer Self-Service" with three system changes and four to six tasks
-> each, running from March to September 2027. Estimate the days for each
+> each, running from March to September 2027. Give every task its own start
+> and end dates inside its system change, and estimate the days for each
 > task against our resource types. Where nothing in the master data fits -
 > a person, a stream, a system - leave the field empty and note why.
 > Answer with the JSON only.

@@ -144,6 +144,7 @@ async function run() {
       tasks: [
         { id: 'TSK-0001', name: 'Build it', status: 'in-progress', owner: 'Jake', okrIds: ['kr-new-entities'],
           links: [{ label: 'Jira INT-1', url: 'https://jira.example.com/browse/INT-1' }],
+          startDate: '2026-09-01', endDate: '2026-09-30',
           days: { po: 2, dev: 8, int: 4, data: 0 } }
       ]
     }
@@ -158,6 +159,19 @@ async function run() {
   equal('task effort is kept', itemA.body.record.tasks[0].days.dev, 8);
   equal('task links are kept', itemA.body.record.tasks[0].links[0].label, 'Jira INT-1');
   equal('task OKRs are kept', itemA.body.record.tasks[0].okrIds[0], 'kr-new-entities');
+  equal('a task keeps its own start date', itemA.body.record.tasks[0].startDate, '2026-09-01');
+  equal('a task keeps its own end date', itemA.body.record.tasks[0].endDate, '2026-09-30');
+
+  const badTaskDates = await api('POST', '/api/dataset/roadmapItems/create', {
+    revision: itemA.body.revision, editor: 'Tester',
+    record: {
+      title: 'Backwards task', programmeId: 'PRG-0001', startDate: '2026-09-01', endDate: '2026-10-31',
+      tasks: [{ name: 'Wrong way round', startDate: '2026-10-01', endDate: '2026-09-01', days: { dev: 1 } }]
+    }
+  });
+  equal('a task ending before it starts is rejected', badTaskDates.status, 422);
+  check('and the message names the task',
+    JSON.stringify(badTaskDates.body).indexOf('Wrong way round') > 0, JSON.stringify(badTaskDates.body));
 
   const legacy = await api('POST', '/api/dataset/roadmapItems/create', {
     revision: itemA.body.revision, editor: 'Tester',
@@ -180,6 +194,8 @@ async function run() {
     legacy.body.record.businessOwner === undefined && legacy.body.record.technicalOwner === undefined);
   equal('a convenience owner is still derived', legacy.body.record.owner, 'Sarah');
   equal('an older external reference becomes a link', legacy.body.record.tasks[0].links[0].url, 'JIRA-9');
+  check('a task written without dates keeps them empty',
+    legacy.body.record.tasks[0].startDate === '' && legacy.body.record.tasks[0].endDate === '');
   await api('POST', '/api/dataset/roadmapItems/delete', {
     revision: legacy.body.revision, id: legacy.body.record.id, editor: 'Tester',
     revisions: { dependencies: (await revisions()).dependencies }
@@ -388,14 +404,17 @@ async function run() {
       title: 'Export sample', programmeId: exportProgramme.id,
       systemAreas: ['bpp', 'netsuite'], types: ['integration'], stream: 'b2b',
       startDate: '2027-01-01', endDate: '2027-03-31',
-      tasks: [{ id: 'TSK-9001', name: 'Build it', status: 'in-progress', owner: 'Jake', days: { dev: 5 } }]
+      tasks: [{ id: 'TSK-9001', name: 'Build it', status: 'in-progress', owner: 'Jake',
+        startDate: '2026-11-02', endDate: '2026-11-30', days: { dev: 5 } }]
     }
   });
 
   const taskCsv = await api('GET', '/api/export/csv/tasks');
   equal('the task register exports as CSV', taskCsv.status, 200);
   check('the task CSV carries the roll-up columns',
-    String(taskCsv.body).indexOf('Task,Status,Owner,Stream,OKRs,Links') > 0);
+    String(taskCsv.body).indexOf('Task,Status,Owner,Stream,Start Date,End Date,OKRs,Links') > 0,
+    String(taskCsv.body).split('\n')[0]);
+  check('the task CSV carries the task dates', String(taskCsv.body).indexOf('2026-11-02') > 0);
   check('the task CSV contains a task row', String(taskCsv.body).indexOf('Build it') > 0);
 
   const itemCsv = String((await api('GET', '/api/export/csv/roadmapItems')).body);
@@ -481,6 +500,8 @@ async function run() {
   example.roadmapItems[0].tasks[0].owner = '';
   example.roadmapItems[0].tasks[0].okrIds = ['kr-order-errors'];
   example.roadmapItems[0].tasks[0].days = { po: 2, dev: 8 };
+  example.roadmapItems[0].tasks[0].startDate = '2027-03-01';
+  example.roadmapItems[0].tasks[0].endDate = '2027-03-31';
   const programmesBefore = (await records('programmes')).length;
   const itemsBefore = (await records('roadmapItems')).length;
   const added = await api('POST', '/api/import/add', { bundle: example, editor: 'Tester' });
@@ -491,6 +512,7 @@ async function run() {
   const addedItem = (await records('roadmapItems')).slice(-1)[0];
   check('its tasks were given ids', (addedItem.tasks || []).every(function (task) { return /^TSK-\d{4}$/.test(task.id); }));
   check('its tasks keep their effort', addedItem.tasks[0].days.dev > 0);
+  equal('its tasks keep their own dates', addedItem.tasks[0].startDate, '2027-03-01');
 
   const reuse = await api('POST', '/api/import/add', {
     editor: 'Tester',

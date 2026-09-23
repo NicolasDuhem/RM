@@ -71,7 +71,7 @@
 
     root.appendChild(RM.pageHeader(
       'Resources',
-      'Capacity is planned per stream and discipline, month by month. Demand comes from the effort on tasks, plus any backlog items this scenario carries.',
+      'Capacity is planned per stream and discipline, month by month. Demand comes from the effort on each task, spread across that task\'s own dates, plus any backlog items this scenario carries.',
       [RM.button('+ New Scenario', function () { openScenarioForm(null); }, 'primary')]
     ));
 
@@ -386,6 +386,7 @@
     const contributors = {};
     let undated = 0;
     let untasked = 0;
+    let inheritedTasks = 0;
     let backlogCount = 0;
 
     /** Spreads one line of effort evenly across the days it runs for. */
@@ -408,26 +409,43 @@
     }
 
     RM.records('roadmapItems').filter(RM.matchesFilters).forEach(function (item) {
-      const start = RM.dates.parseIso(item.startDate);
-      const end = RM.dates.parseIso(item.endDate);
+      const itemStart = RM.dates.parseIso(item.startDate);
+      const itemEnd = RM.dates.parseIso(item.endDate);
+      const itemDated = !!(itemStart && itemEnd && itemEnd >= itemStart);
       const tasks = item.tasks || [];
-      if (state.source === 'tasks' && tasks.length === 0) untasked += 1;
-      if (!start || !end || end < start) {
-        if (state.source !== 'tasks' || tasks.length) undated += 1;
+
+      if (state.source !== 'tasks') {
+        // An estimate belongs to the whole change, so it uses the change's dates.
+        if (!itemDated) { undated += 1; return; }
+        add(item.stream || 'unassigned', RM.effort.ofEstimate(item, state.source), item.title, itemStart, itemEnd);
         return;
       }
 
-      const lines = state.source === 'tasks'
-        ? tasks.map(function (task) {
-          return {
-            stream: RM.streamOf(item, task) || 'unassigned',
-            days: RM.effort.ofTask(task),
-            label: item.title + ' \u00b7 ' + task.name
-          };
-        })
-        : [{ stream: item.stream || 'unassigned', days: RM.effort.ofEstimate(item, state.source), label: item.title }];
+      if (tasks.length === 0) { untasked += 1; return; }
 
-      lines.forEach(function (line) { add(line.stream, line.days, line.label, start, end); });
+      // Each task is spread across its own dates, so work that is heavy in
+      // the first month and light afterwards shows up that way.
+      tasks.forEach(function (task) {
+        let start = RM.dates.parseIso(task.startDate);
+        let end = RM.dates.parseIso(task.endDate);
+        let inherited = false;
+
+        if (!start || !end || end < start) {
+          if (!itemDated) { undated += 1; return; }
+          start = itemStart;
+          end = itemEnd;
+          inherited = true;
+          inheritedTasks += 1;
+        }
+
+        add(
+          RM.streamOf(item, task) || 'unassigned',
+          RM.effort.ofTask(task),
+          item.title + ' \u00b7 ' + task.name + (inherited ? ' (no dates of its own)' : ''),
+          start,
+          end
+        );
+      });
     });
 
     // Backlog items this scenario has been told to carry. They are not on the
@@ -443,8 +461,8 @@
     });
 
     return {
-      demand: demand, contributors: contributors,
-      undated: undated, untasked: untasked, backlogCount: backlogCount
+      demand: demand, contributors: contributors, undated: undated,
+      untasked: untasked, inheritedTasks: inheritedTasks, backlogCount: backlogCount
     };
   }
 
@@ -489,16 +507,20 @@
       model.untasked && state.source === 'tasks'
         ? el('div', 'callout callout-info', model.untasked + ' system change(s) have no tasks yet, so they add nothing to demand. Switch source to an estimate to include them.')
         : null,
+      model.inheritedTasks && state.source === 'tasks'
+        ? el('div', 'callout callout-warn', model.inheritedTasks + ' task(s) have no dates of their own, so their effort is spread across the whole of their system change. Give them dates for a truer picture of when the work lands.')
+        : null,
       el('p', 'muted small', model.backlogCount
         ? model.backlogCount + ' backlog item(s) are carried by this scenario and counted below. Change the selection on the Capacity plan tab.'
         : 'No backlog items are carried by this scenario. Pick them on the Capacity plan tab.'),
-      el('div', 'table-wrap', el('table', 'table table-matrix', [
+      el('div', 'table-wrap', el('table', 'table table-matrix table-demand', [
         el('thead', null, el('tr', null, [el('th', 'sticky-col', 'Stream / discipline')]
           .concat(months.map(function (month) { return el('th', 'numeric', monthLabel(month)); })))),
         el('tbody', null, demandRows())
       ])),
       el('p', 'muted small',
         'Each cell shows demand in days against the capacity planned for that month. ' +
+        'Effort is spread across each task\'s own dates, so a task that is heavy up front shows as heavy up front. ' +
         'Red means demand is above capacity. Nothing here changes a date - it is for the conversation about what moves.'),
       totalsChart()
     ]);

@@ -217,6 +217,8 @@ function taskColumns(settings) {
     option('Status', 'status', 'statuses'),
     col('Owner', 'owner'),
     option('Stream', 'stream', 'resourceStreams'),
+    date('Start Date', 'startDate'),
+    date('End Date', 'endDate'),
     col('OKRs', 'okrNames'),
     col('Links', 'linkText'),
     col('Description', 'description')

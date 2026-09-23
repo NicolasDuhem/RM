@@ -234,9 +234,16 @@ function validateTask(child, errors, field, roadmapItemId) {
     okrIds: idList(child.okrIds, ''),
     links: cleanLinks(errors, child.links, field, child.externalReference),
     days: cleanDays(child.days),
+    // Tasks carry their own dates: effort is spread across these, which is
+    // what makes the capacity view reflect when the work actually happens.
+    startDate: optionalDate(errors, child.startDate, field, 'Task start date'),
+    endDate: optionalDate(errors, child.endDate, field, 'Task end date'),
     notes: str(child.notes)
   };
   if (!out.name) errors.push({ field: field, message: 'Every task needs a name.' });
+  if (out.startDate && out.endDate && out.endDate < out.startDate) {
+    errors.push({ field: field, message: '"' + out.name + '": the task end date must be on or after its start date.' });
+  }
   return out;
 }
 

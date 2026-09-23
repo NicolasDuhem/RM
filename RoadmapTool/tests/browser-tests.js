@@ -132,6 +132,13 @@ function check(name, ok, detail) {
   await taskModal.locator('.field', { hasText: 'Task name' }).locator('input').fill('Build the integration');
   await taskModal.locator('.field').filter({ has: page.locator('.field-label', { hasText: /^Owner$/ }) })
     .locator('select').selectOption({ label: 'Jake' });
+  const taskDates = taskModal.locator('.field').filter({ has: page.locator('.field-label', { hasText: /^(Start|End) date$/ }) });
+  check('a new task starts life on its system change\'s dates',
+    await taskDates.nth(0).locator('input').inputValue() === '2026-10-01'
+    && await taskDates.nth(1).locator('input').inputValue() === '2026-12-31');
+  // The point of task dates: narrow them so the effort lands in one month.
+  await taskDates.nth(0).locator('input').fill('2026-10-01');
+  await taskDates.nth(1).locator('input').fill('2026-10-31');
   await taskModal.locator('.field').filter({ hasText: /^Product owner$/ }).locator('input').fill('3');
   await taskModal.locator('.field').filter({ hasText: /^Development$/ }).locator('input').fill('12');
   await taskModal.locator('.field').filter({ hasText: /^Integration$/ }).locator('input').fill('8');
@@ -148,6 +155,11 @@ function check(name, ok, detail) {
   await page.waitForTimeout(200);
   await taskModal.locator('.link-row').nth(1).locator('input').nth(0).fill('Design doc');
   await taskModal.locator('.link-row').nth(1).locator('input').nth(1).fill('https://docs.example.com/design');
+  // A third link with no label at all, and a punishing address.
+  await taskModal.locator('.button', { hasText: '+ Add link' }).click();
+  await page.waitForTimeout(200);
+  await taskModal.locator('.link-row').nth(2).locator('input').nth(1)
+    .fill('https://confluence.example.com/spaces/PLATFORM/pages/9988776655/Accreditation+data+model+decision+record');
   // A link can be opened from the editor, in a new tab, before it is saved.
   const [linkTab] = await Promise.all([
     page.context().waitForEvent('page'),
@@ -164,8 +176,28 @@ function check(name, ok, detail) {
     return i && i.tasks[0];
   });
   check('the task keeps its effort', task && task.days.dev === 12 && task.days.int === 8);
-  check('the task keeps several external links', task && task.links.length === 2);
+  check('the task keeps several external links', task && task.links.length === 3);
   check('the task keeps its OKR', task && task.okrIds.length === 1);
+  check('the task keeps its own dates',
+    task && task.startDate === '2026-10-01' && task.endDate === '2026-10-31',
+    task && task.startDate + ' to ' + task.endDate);
+
+  // The task table has to stay readable however long the notes and addresses are.
+  const taskRow = page.locator('.table-tasks tbody tr').first();
+  check('the task table shows the task dates',
+    (await taskRow.locator('.col-dates').innerText()).indexOf('1 Oct 26') === 0,
+    await taskRow.locator('.col-dates').innerText());
+  const chips = await taskRow.locator('.col-links .link-out').allTextContents();
+  check('a labelled link shows its label, not its address', chips[0] === 'Jira INT-999', JSON.stringify(chips));
+  check('an unlabelled link is shortened to fit the cell',
+    chips[2].length <= 24 && chips[2].indexOf('https://') < 0, JSON.stringify(chips));
+  check('the full address stays on the tooltip',
+    (await taskRow.locator('.col-links .link-out').nth(2).getAttribute('title')).indexOf('confluence.example.com') > 0);
+  const fits = await page.evaluate(() => {
+    const table = document.querySelector('.table-tasks');
+    return table.scrollWidth - table.closest('.table-wrap').clientWidth;
+  });
+  check('a long description and address do not push the table out of its panel', fits <= 0, String(fits));
 
   await page.locator('.tab', { hasText: 'Resources' }).click();
   await page.waitForTimeout(400);
@@ -295,6 +327,48 @@ function check(name, ok, detail) {
   await page.locator('.segment', { hasText: 'Demand vs capacity' }).click();
   await page.waitForTimeout(800);
   check('demand is shown against capacity', await page.locator('.cell-demand-value').count() > 0);
+
+  // Task dates, not the system change's, are what shape the monthly demand:
+  // a change running Oct to Jan whose effort is all in October has to read
+  // as a spike in October, not as a flat quarter. The roadmap already has
+  // demand of its own, so measure what this one change adds.
+  const readSpread = () => page.evaluate(() => {
+    const labels = Array.from(document.querySelectorAll('.table-demand thead th.numeric')).map(th => th.textContent.trim());
+    const rows = Array.from(document.querySelectorAll('.table-demand tbody tr'));
+    let inStream = false;
+    for (const row of rows) {
+      if (row.classList.contains('row-group')) { inStream = row.textContent.trim() === 'B2B'; continue; }
+      if (!inStream) continue;
+      if (row.querySelector('.row-header').textContent.trim() !== 'Development') continue;
+      const cells = Array.from(row.querySelectorAll('.cell-demand-value')).map(c => c.textContent.trim());
+      const at = label => Number(cells[labels.indexOf(label)].replace(/[^0-9.]/g, '')) || 0;
+      return { oct: at('Oct 2026'), nov: at('Nov 2026'), dec: at('Dec 2026') };
+    }
+    return null;
+  });
+  const demandBefore = await readSpread();
+  await page.evaluate(async () => {
+    const programme = window.RM.records('programmes')[0];
+    await window.RM.api.create('roadmapItems', {
+      title: 'Front loaded change', programmeId: programme.id, stream: 'b2b',
+      startDate: '2026-10-01', endDate: '2027-01-31', status: 'in-progress',
+      tasks: [
+        { name: 'Heavy build', startDate: '2026-10-01', endDate: '2026-10-31', days: { dev: 42 } },
+        { name: 'Light tail', startDate: '2026-11-01', endDate: '2027-01-31', days: { dev: 3 } }
+      ]
+    });
+    await window.RM.refresh();
+  });
+  await page.waitForTimeout(900);
+  const demandAfter = await readSpread();
+  const added = demandBefore && demandAfter
+    ? { oct: demandAfter.oct - demandBefore.oct, nov: demandAfter.nov - demandBefore.nov, dec: demandAfter.dec - demandBefore.dec }
+    : null;
+  // Spread across the system change it would be ~11 a month; by task it is 42 then 1.
+  check('a task\'s effort lands in its own months, not the whole system change',
+    added && added.oct > 40 && added.oct < 44, JSON.stringify(added));
+  check('and the months after it stay quiet',
+    added && added.nov < 2 && added.dec < 2, JSON.stringify(added));
   await page.locator('.segment', { hasText: 'Standard estimate' }).click();
   await page.waitForTimeout(600);
   check('the demand source can be switched', await page.locator('.segment-active', { hasText: 'Standard estimate' }).count() === 1);

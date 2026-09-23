@@ -182,16 +182,19 @@ function sampleData() {
             ['kr-order-errors', 'kr-customer-master'],
             [link('Jira BPP-1042', 'https://jira.example.com/browse/BPP-1042')],
             { po: 2, dev: 8, int: 0, data: 0 },
-            'Object, fields, effective dating and record-level history.'),
+            'Object, fields, effective dating and record-level history.',
+            '2026-09-01', '2026-09-30'),
           task('TSK-0002', 'RM-0001', 'Migrate the accreditation spreadsheet', 'not-started', 'Data team', 'erp-subsidiaries',
             ['kr-customer-master'],
             [link('Jira BPP-1043', 'https://jira.example.com/browse/BPP-1043')],
             { po: 1, dev: 2, int: 0, data: 6 },
-            'Cleanse, map and load the current spreadsheet, with a dealer confirmation round.'),
+            'Cleanse, map and load the current spreadsheet, with a dealer confirmation round.',
+            '2026-09-15', '2026-10-15'),
           task('TSK-0003', 'RM-0001', 'Publish accreditation to the platform', 'in-progress', 'Integration team', 'b2b',
             ['kr-order-errors'],
             [], { po: 1, dev: 3, int: 6, data: 0 },
-            'Expose accreditation to BPP so the catalogue can use it.')
+            'Expose accreditation to BPP so the catalogue can use it.',
+            '2026-10-01', '2026-10-31')
         ]
       }),
 
@@ -206,11 +209,13 @@ function sampleData() {
         tasks: [
           task('TSK-0004', 'RM-0002', 'Matrix data model', 'in-progress', 'Jake', 'b2b',
             ['kr-order-errors'], [], { po: 2, dev: 6, int: 0, data: 1 },
-            'Category to accreditation mapping with versioning.'),
+            'Category to accreditation mapping with versioning.',
+            '2026-10-15', '2026-11-15'),
           task('TSK-0005', 'RM-0002', 'Matrix maintenance screen', 'not-started', 'Jake', 'b2b',
             [], [link('Jira BPP-1102', 'https://jira.example.com/browse/BPP-1102')],
             { po: 3, dev: 10, int: 1, data: 0 },
-            'Screen for the commercial team to maintain the matrix without IT.')
+            'Screen for the commercial team to maintain the matrix without IT.',
+            '2026-11-01', '2026-12-15')
         ]
       }),
 
@@ -226,10 +231,12 @@ function sampleData() {
         tasks: [
           task('TSK-0006', 'RM-0003', 'Catalogue filtering', 'not-started', 'Jake', 'b2b',
             ['kr-order-errors'], [], { po: 2, dev: 9, int: 2, data: 0 },
-            'Hide products the dealer is not accredited for.'),
+            'Hide products the dealer is not accredited for.',
+            '2026-12-01', '2027-01-15'),
           task('TSK-0007', 'RM-0003', 'Basket and order validation', 'not-started', 'Jake', 'b2b',
             [], [], { po: 2, dev: 7, int: 3, data: 0 },
-            'Re-check eligibility at basket and order submission.')
+            'Re-check eligibility at basket and order submission.',
+            '2027-01-05', '2027-02-15')
         ]
       }),
 
@@ -244,10 +251,12 @@ function sampleData() {
         tasks: [
           task('TSK-0008', 'RM-0004', 'Attribute catalogue workshops', 'in-progress', 'Sarah', 'erp-subsidiaries',
             ['kr-product-master'], [], { po: 8, dev: 0, int: 0, data: 2 },
-            'Workshops per product family to agree the attribute list and owners.'),
+            'Workshops per product family to agree the attribute list and owners.',
+            '2026-09-15', '2026-10-20'),
           task('TSK-0009', 'RM-0004', 'Profile the current data', 'in-progress', 'Data team', 'erp-subsidiaries',
             ['kr-product-master'], [], { po: 1, dev: 0, int: 0, data: 6 },
-            'Measure completeness and conflicts across the current sources.')
+            'Measure completeness and conflicts across the current sources.',
+            '2026-10-01', '2026-11-30')
         ]
       }),
 
@@ -261,10 +270,12 @@ function sampleData() {
         tasks: [
           task('TSK-0010', 'RM-0005', 'Translation source decision', 'not-started', 'Sarah', 'd2c',
             ['kr-time-to-publish'], [], { po: 4, dev: 0, int: 0, data: 0 },
-            'Compare PIM-managed translation against the current process.'),
+            'Compare PIM-managed translation against the current process.',
+            '2026-11-01', '2026-11-30'),
           task('TSK-0011', 'RM-0005', 'Publish translations to commerce', 'not-started', 'Sarah', 'd2c',
             ['kr-time-to-publish'], [], { po: 2, dev: 9, int: 5, data: 1 },
-            'Feed translated content into the commerce channels.')
+            'Feed translated content into the commerce channels.',
+            '2026-12-01', '2027-01-31')
         ]
       }),
 
@@ -277,7 +288,8 @@ function sampleData() {
           { po: 20, dev: 5, int: 5, data: 8 }, 'Normal', 'Includes a proof of concept with two vendors.'),
         tasks: [
           task('TSK-0012', 'RM-0006', 'Requirements and vendor long list', 'not-started', 'Sarah', 'erp-subsidiaries',
-            ['kr-product-master'], [], { po: 6, dev: 0, int: 0, data: 1 }, '')
+            ['kr-product-master'], [], { po: 6, dev: 0, int: 0, data: 1 }, '',
+            '2027-01-01', '2027-02-28')
         ]
       }),
 
@@ -294,12 +306,15 @@ function sampleData() {
           task('TSK-0013', 'RM-0007', 'Order payload mapping', 'in-progress', 'Integration team', 'erp-hq',
             ['kr-no-rekeying'],
             [link('Jira INT-320', 'https://jira.example.com/browse/INT-320')],
-            { po: 2, dev: 6, int: 12, data: 0 }, 'Map the platform order to the NetSuite sales order.'),
+            { po: 2, dev: 6, int: 12, data: 0 }, 'Map the platform order to the NetSuite sales order.',
+            '2026-09-01', '2026-10-15'),
           task('TSK-0014', 'RM-0007', 'Error handling and retry', 'not-started', 'Integration team', 'erp-hq',
             ['kr-no-rekeying'], [], { po: 1, dev: 4, int: 8, data: 0 },
-            'Retry, alerting and a visible failure queue.'),
+            'Retry, alerting and a visible failure queue.',
+            '2026-10-01', '2026-11-15'),
           task('TSK-0015', 'RM-0007', 'Tax per entity', 'in-progress', 'Finance', 'erp-hq',
-            [], [], { po: 3, dev: 5, int: 4, data: 0 }, 'Confirm and configure tax treatment per entity.')
+            [], [], { po: 3, dev: 5, int: 4, data: 0 }, 'Confirm and configure tax treatment per entity.',
+            '2026-09-15', '2026-11-30')
         ]
       }),
 
@@ -314,10 +329,12 @@ function sampleData() {
         tasks: [
           task('TSK-0016', 'RM-0008', 'Inventory feed', 'in-progress', 'Integration team', 'erp-hq',
             ['kr-availability'], [], { po: 2, dev: 6, int: 10, data: 2 },
-            'Scheduled per-entity stock feed into the platform.'),
+            'Scheduled per-entity stock feed into the platform.',
+            '2026-10-15', '2026-11-30'),
           task('TSK-0017', 'RM-0008', 'Availability calculation', 'not-started', 'Jake', 'b2b',
             ['kr-availability'], [], { po: 2, dev: 7, int: 2, data: 2 },
-            'Turn raw stock into a published availability figure.')
+            'Turn raw stock into a published availability figure.',
+            '2026-11-15', '2026-12-15')
         ]
       }),
 
@@ -332,10 +349,12 @@ function sampleData() {
         tasks: [
           task('TSK-0018', 'RM-0009', 'Entity configuration', 'not-started', 'Jake', 'b2b',
             ['kr-new-entities'], [], { po: 3, dev: 6, int: 4, data: 1 },
-            'Pricing, tax, shipping and payment configuration for the USA entity.'),
+            'Pricing, tax, shipping and payment configuration for the USA entity.',
+            '2026-12-01', '2027-01-31'),
           task('TSK-0019', 'RM-0009', 'Dealer onboarding', 'not-started', 'Operations', 'erp-hq',
             ['kr-new-entities'], [], { po: 5, dev: 1, int: 1, data: 0 },
-            'Onboard the pilot dealer group and then the rest.')
+            'Onboard the pilot dealer group and then the rest.',
+            '2027-01-15', '2027-02-28')
         ]
       }),
 
@@ -348,7 +367,8 @@ function sampleData() {
           { po: 12, dev: 16, int: 16, data: 4 }, 'Normal', 'Full localisation review.'),
         tasks: [
           task('TSK-0020', 'RM-0010', 'Entity configuration', 'not-started', 'Jake', 'b2b',
-            ['kr-new-entities'], [], { po: 3, dev: 5, int: 5, data: 1 }, '')
+            ['kr-new-entities'], [], { po: 3, dev: 5, int: 5, data: 1 }, '',
+            '2027-03-01', '2027-05-31')
         ]
       }),
 
@@ -361,7 +381,8 @@ function sampleData() {
           { po: 15, dev: 20, int: 20, data: 6 }, 'Normal', 'Includes full translation workflow.'),
         tasks: [
           task('TSK-0021', 'RM-0011', 'Entity configuration and translation', 'not-started', 'Jake', 'b2b',
-            ['kr-new-entities'], [], { po: 4, dev: 6, int: 5, data: 1 }, '')
+            ['kr-new-entities'], [], { po: 4, dev: 6, int: 5, data: 1 }, '',
+            '2027-05-01', '2027-08-31')
         ]
       }),
 
@@ -505,10 +526,11 @@ function sampleData() {
     return { label: label, url: url };
   }
 
-  function task(id, roadmapItemId, name, status, owner, stream, okrIds, links, days, description) {
+  function task(id, roadmapItemId, name, status, owner, stream, okrIds, links, days, description, startDate, endDate) {
     return {
       id: id, roadmapItemId: roadmapItemId, name: name, status: status, owner: owner,
       stream: stream, okrIds: okrIds, links: links, days: days,
+      startDate: startDate || '', endDate: endDate || '',
       description: description, notes: ''
     };
   }

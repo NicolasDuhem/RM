@@ -617,52 +617,76 @@
       tasks.length
         ? el('div', 'table-wrap', el('table', 'table table-hover table-tasks', [
           el('thead', null, el('tr', null, [
-            el('th', null, 'Task'),
-            el('th', null, 'Status'),
-            el('th', null, 'Owner'),
-            el('th', null, 'Stream'),
-            el('th', null, 'OKR impacted'),
-            el('th', null, 'Links'),
-            el('th', null, 'Effort (days)'),
-            el('th', 'numeric', 'Total'),
-            el('th', null, '')
+            el('th', 'col-task', 'Task'),
+            el('th', 'col-dates', 'Dates'),
+            el('th', 'col-status', 'Status'),
+            el('th', 'col-owner', 'Owner'),
+            el('th', 'col-stream', 'Stream'),
+            el('th', 'col-okr', 'OKR'),
+            el('th', 'col-links', 'Links'),
+            el('th', 'col-effort', 'Effort (days)'),
+            el('th', 'numeric col-total', 'Total'),
+            el('th', 'col-actions', '')
           ])),
           el('tbody', null, tasks.map(function (task) {
             const days = RM.effort.ofTask(task);
+            const stream = RM.streamOf(item, task);
+            const dated = !!(task.startDate && task.endDate);
             return el('tr', null, [
-              el('td', 'task-cell', [
-                el('button', { class: 'link-button link-strong', type: 'button', onclick: function () { editTask(item, task, redraw); } }, task.name),
-                task.description ? el('div', { class: 'muted small clamp', title: task.description }, task.description) : null
-              ]),
-              el('td', null, RM.statusBadge(task.status)),
-              el('td', null, task.owner || ''),
-              el('td', null, RM.streamOf(item, task)
-                ? el('span', 'pill', RM.options.name('resourceStreams', RM.streamOf(item, task)))
+              // The description is a caption on the name rather than a second
+              // line, so one long note cannot squash the whole table.
+              el('td', 'col-task', el('span', 'task-name', [
+                el('button', {
+                  class: 'link-button link-strong ellipsis',
+                  type: 'button',
+                  title: task.description || task.name,
+                  onclick: function () { editTask(item, task, redraw); }
+                }, task.name),
+                task.description
+                  ? el('span', { class: 'note-mark', title: task.description }, '\u24d8')
+                  : null
+              ])),
+              el('td', 'col-dates', dated
+                ? el('span', {
+                  class: 'small',
+                  title: RM.dates.formatDate(task.startDate) + ' \u2192 ' + RM.dates.formatDate(task.endDate)
+                }, shortDate(task.startDate) + ' \u2192 ' + shortDate(task.endDate))
+                : el('span', { class: 'pill pill-quiet', title: 'Without dates this task is spread across the whole system change on the Resources screen.' }, 'No dates')),
+              el('td', 'col-status', RM.statusBadge(task.status)),
+              el('td', 'col-owner', el('span', { class: 'ellipsis', title: task.owner || '' }, task.owner || '')),
+              el('td', 'col-stream', stream
+                ? el('span', { class: 'pill ellipsis', title: RM.options.name('resourceStreams', stream) }, RM.options.name('resourceStreams', stream))
                 : el('span', 'muted', '-')),
-              el('td', null, (task.okrIds || []).length
+              el('td', 'col-okr', (task.okrIds || []).length
                 ? el('span', 'chip-list', (task.okrIds || []).map(function (id) {
-                  return el('span', { class: 'pill pill-okr', title: RM.okrs.label(id) }, RM.okrs.shortLabel(id));
+                  return el('span', { class: 'pill pill-okr ellipsis', title: RM.okrs.label(id) }, RM.okrs.shortLabel(id));
                 }))
                 : el('span', 'muted', '-')),
-              el('td', null, (task.links || []).length
+              el('td', 'col-links', (task.links || []).length
                 ? el('span', 'chip-list', (task.links || []).map(function (link) {
-                  return el('a', { class: 'link-out', href: link.url, target: '_blank', rel: 'noreferrer noopener', title: link.url }, link.label || link.url);
+                  return el('a', {
+                    class: 'link-out ellipsis',
+                    href: link.url,
+                    target: '_blank',
+                    rel: 'noreferrer noopener',
+                    title: (link.label ? link.label + ' - ' : '') + link.url
+                  }, shortLink(link));
                 }))
                 : el('span', 'muted', '-')),
-              el('td', null, el('span', 'chip-list', resourceTypes.map(function (type) {
+              el('td', 'col-effort', el('span', 'chip-list', resourceTypes.map(function (type) {
                 return days[type.id]
                   ? el('span', { class: 'pill', title: type.name }, shortName(type.name) + ' ' + RM.effort.format(days[type.id]))
                   : null;
               }))),
-              el('td', 'numeric strong', RM.effort.format(RM.effort.total(days))),
-              el('td', 'row-actions', [
+              el('td', 'numeric strong col-total', RM.effort.format(RM.effort.total(days))),
+              el('td', 'row-actions col-actions', [
                 el('button', { class: 'link-button', type: 'button', onclick: function () { editTask(item, task, redraw); } }, 'Edit'),
                 el('button', { class: 'link-button link-danger', type: 'button', onclick: function () { removeChild(item, 'tasks', task, redraw, task.name); } }, 'Delete')
               ])
             ]);
           })),
           el('tfoot', null, el('tr', null, [
-            el('th', { colspan: '6' }, 'Total effort'),
+            el('th', { colspan: '7' }, 'Total effort'),
             el('th', null, el('span', 'chip-list', resourceTypes.map(function (type) {
               return totals[type.id]
                 ? el('span', { class: 'pill', title: type.name }, shortName(type.name) + ' ' + RM.effort.format(totals[type.id]))
@@ -686,6 +710,35 @@
       return;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  /** 1 Sep 26 - short enough for a table cell. */
+  function shortDate(iso) {
+    const date = RM.dates.parseIso(iso);
+    if (!date) return '';
+    return date.getDate() + ' ' + RM.dates.MONTHS[date.getMonth()] + ' ' + String(date.getFullYear()).slice(2);
+  }
+
+  /**
+   * A readable stand-in for a link: its label, or the last meaningful part of
+   * the address. The full address stays on the tooltip, never in the cell.
+   */
+  function shortLink(link) {
+    const url = String(link.url || '').trim();
+    const label = String(link.label || '').trim();
+    // A link saved without a label keeps the address as its label, so a label
+    // that is itself an address is no better than none: shorten the address.
+    if (label && label !== url && !/^[a-z]+:\/\//i.test(label)) return clip(label);
+    if (!url) return label ? clip(label) : 'Link';
+    const withoutScheme = url.replace(/^[a-z]+:\/\//i, '').replace(/[?#].*$/, '').replace(/\/+$/, '');
+    const parts = withoutScheme.split('/').filter(Boolean);
+    return clip(parts[parts.length - 1] || withoutScheme);
+  }
+
+  /** Keeps a cell's text short enough to sit on one line. */
+  function clip(text) {
+    const value = String(text);
+    return value.length > 24 ? value.slice(0, 22) + '\u2026' : value;
   }
 
   /** "Product Owner" -> "PO", "Development" -> "Dev": initials for tight cells. */
@@ -726,10 +779,22 @@
       {
         name: 'stream', label: 'Resource stream', type: 'select', options: RM.selectOptions('resourceStreams'),
         emptyLabel: item.stream ? 'Same as the change (' + RM.options.name('resourceStreams', item.stream) + ')' : '- not set -'
-      }
+      },
+      {
+        name: 'startDate', label: 'Start date', type: 'date',
+        hint: 'The effort below is spread across these dates on the Resources screen.'
+      },
+      { name: 'endDate', label: 'End date', type: 'date' }
     ], draft);
 
     form.element.classList.add('form-grid-trio');
+    if (!draft.startDate && !draft.endDate && item.startDate) {
+      // A new task starts life inside its system change, then gets narrowed.
+      const startInput = form.inputs.startDate && form.inputs.startDate.input;
+      const endInput = form.inputs.endDate && form.inputs.endDate.input;
+      if (startInput && !startInput.value) startInput.value = item.startDate;
+      if (endInput && !endInput.value) endInput.value = item.endDate || '';
+    }
 
     const effortForm = RM.form(resourceTypes.map(function (type) {
       return { name: 'days.' + type.id, label: type.name, type: 'number', min: 0, step: '0.5' };

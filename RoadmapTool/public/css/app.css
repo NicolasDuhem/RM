@@ -772,7 +772,8 @@ button.mini-row:hover { border-color: var(--accent); background: var(--accent-so
 .ms-option-parent { font-weight: 600; color: var(--navy); }
 .ms-option-child { padding-left: 24px; color: var(--ink-soft); }
 
-.chip-list { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.chip-list { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; max-width: 100%; }
+.chip-list > * { max-width: 100%; }
 .pill-okr { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
 .link-out {
   display: inline-flex; align-items: center; font-size: 11.5px; color: var(--accent);
@@ -813,8 +814,25 @@ button.mini-row:hover { border-color: var(--accent); background: var(--accent-so
 .field-headline .input { font-size: 17px; font-weight: 600; padding: 7px 10px; }
 
 .link-editor { display: grid; gap: 6px; }
-.table-tasks { min-width: 900px; }
-.table-tasks .task-cell { min-width: 210px; }
+/* Fixed columns: one long note or address can no longer squash the table. */
+.table-tasks { min-width: 1080px; table-layout: fixed; }
+.table-tasks th, .table-tasks td { overflow: hidden; }
+.table-tasks .col-task { width: 24%; min-width: 190px; }
+.table-tasks .col-dates { width: 156px; }
+/* A date range reads as one line or not at all. */
+.table-tasks .col-dates .small { white-space: nowrap; }
+.table-tasks .col-status { width: 104px; }
+.table-tasks .col-owner { width: 112px; }
+.table-tasks .col-stream { width: 116px; }
+.table-tasks .col-okr { width: 150px; }
+.table-tasks .col-links { width: 150px; }
+.table-tasks .col-effort { width: 190px; }
+.table-tasks .col-total { width: 62px; }
+.table-tasks .col-actions { width: 96px; }
+.task-name { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+.ellipsis { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.note-mark { color: var(--muted); font-size: 12px; cursor: help; flex: 0 0 auto; }
+.note-mark:hover { color: var(--accent); }
 .clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .link-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.6fr) auto auto; gap: 6px; align-items: center; }
 
@@ -828,8 +846,13 @@ button.mini-row:hover { border-color: var(--accent); background: var(--accent-so
 .row-title-task { font-size: 12.5px; font-weight: 500; color: var(--ink-soft); }
 .row-toggle-task { font-size: 9px; color: var(--muted); }
 .bar-task {
-  height: 14px; background: repeating-linear-gradient(135deg, #e2e8f0 0 6px, #eef2f7 6px 12px);
+  height: 14px; background: #e8eef7;
   border: 1px solid var(--line-strong); color: var(--ink-soft); font-size: 10.5px;
+}
+/* A task with no dates of its own borrows the span of its system change. */
+.bar-task-inherited {
+  background: repeating-linear-gradient(135deg, #eef2f7 0 6px, #f8fafc 6px 12px);
+  border-style: dashed; opacity: 0.85;
 }
 .indicator-link { text-decoration: none; }
 .legend-task-bar { background: repeating-linear-gradient(135deg, #e2e8f0 0 4px, #eef2f7 4px 8px); border: 1px solid var(--line-strong); }

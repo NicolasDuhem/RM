@@ -137,10 +137,14 @@ dated children simply shows *Not scheduled*.
 to the system change, and again to the programme.
 
 A task has a name, status, owner, description, the OKRs it affects, any number
-of external links (a Jira ticket, a document, a design) and the days required
-per discipline. Tasks have no dates of their own: they run with the system
-change above them. Expand a system change on the roadmap with the small arrow
-to see its tasks.
+of external links (a Jira ticket, a document, a design), its own start and end
+dates, and the days required per discipline. **A task's dates are what drive
+the capacity view**: a system change may run for four months while the work
+inside it is heavy in the first and thin afterwards, and dating each task is
+what makes that visible. A task left without dates falls back to running across
+the whole system change - the roadmap draws it dashed and the demand grid says
+so. Expand a system change on the roadmap with the small arrow to see its
+tasks.
 
 ---
 
@@ -200,8 +204,9 @@ Then describe what you want and ask for JSON that follows the guide **using
 only ids found in the master data**. The guide is explicit that only
 programmes, system changes and tasks may be created, that master data must
 never be invented, and that where nothing fits the field is left empty and
-explained - but the days a task needs are always filled in, so the work can be
-costed and somebody can pick the team later.
+explained - but the days a task needs, and its start and end dates, are always
+filled in, so the work can be costed and placed in time and somebody can pick
+the team later.
 
 If you would rather send raw files from the `data` folder: `settings.json` is
 required, `programmes.json` is recommended so work lands under a programme
@@ -234,9 +239,10 @@ that differ. Duplicate a scenario to compare "what we have" with "what we would
 need".
 
 **Resources -> Demand vs capacity** puts the effort recorded on tasks against
-that plan. Each task's days are spread evenly across the dates of the system
-change it belongs to, and counted against the stream on the task (or, if the
-task has none, the stream on the system change). Every cell shows
+that plan. Each task's days are spread evenly across **its own** start and end
+dates, and counted against the stream on the task (or, if the task has none,
+the stream on the system change). A task without dates falls back to the dates
+of its system change, and the grid warns you how many did. Every cell shows
 `demand / capacity` in days; red means demand is above what is planned.
 
 The demand source can be switched between the task plan and the Fast MVP or

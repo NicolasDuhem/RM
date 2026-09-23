@@ -509,6 +509,12 @@
           RM.statusBadge(task.status),
           task.owner ? el('span', 'muted', task.owner) : null,
           stream ? el('span', 'pill', RM.options.name('resourceStreams', stream)) : null,
+          task.startDate && task.endDate
+            ? el('span', {
+              class: 'muted row-meta-dates',
+              title: RM.dates.formatDate(task.startDate) + ' \u2192 ' + RM.dates.formatDate(task.endDate)
+            }, shortDate(task.startDate) + ' \u2192 ' + shortDate(task.endDate))
+            : el('span', 'pill pill-quiet', 'No dates'),
           total ? el('span', 'muted', RM.effort.format(total) + ' d') : null,
           (task.okrIds || []).length
             ? el('span', { class: 'pill pill-okr', title: (task.okrIds || []).map(RM.okrs.label).join('\n') }, 'OKR \u00d7' + task.okrIds.length)
@@ -524,18 +530,24 @@
       }))
     ]);
 
+    // A task is drawn on its own dates. Without them it falls back to the
+    // dates of its system change, shown faintly to say it is inherited.
+    const ownDates = !!(task.startDate && task.endDate);
+    const startDate = ownDates ? task.startDate : item.startDate;
+    const endDate = ownDates ? task.endDate : item.endDate;
+
     const bars = [];
-    const geometry = timeline.bar(item.startDate, item.endDate);
+    const geometry = timeline.bar(startDate, endDate);
     if (geometry) {
       const bar = el('div', {
-        class: 'bar bar-task',
+        class: 'bar bar-task' + (ownDates ? '' : ' bar-task-inherited'),
         style: { left: geometry.left + 'px', width: geometry.width + 'px' }
       }, el('span', 'bar-label', task.name));
-      attachTooltip(bar, function () { return taskTooltip(item, task, days); });
+      attachTooltip(bar, function () { return taskTooltip(item, task, days, ownDates); });
       bar.addEventListener('click', function () { RM.editor.editTask(item, task, function () { RM.renderView(); }); });
       bars.push(bar);
     } else {
-      bars.push(el('div', 'bar-placeholder', 'Runs with its system change'));
+      bars.push(el('div', 'bar-placeholder', 'No dates'));
     }
 
     return el('div', 'gantt-row gantt-row-task', [left, RM.gantt.timeCell(timeline, bars)]);
@@ -725,9 +737,12 @@
     ];
   }
 
-  function taskTooltip(item, task, days) {
+  function taskTooltip(item, task, days, ownDates) {
     return [
       el('strong', 'tooltip-title', task.name),
+      el('div', 'tooltip-dates', ownDates
+        ? RM.dates.formatDate(task.startDate) + ' \u2192 ' + RM.dates.formatDate(task.endDate)
+        : 'No dates of its own - runs with its system change'),
       el('div', 'tooltip-row', [el('span', 'tooltip-label', 'System change'), el('span', null, item.title)]),
       el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Status'), el('span', null, RM.options.name('statuses', task.status) || 'Not set')]),
       task.owner ? el('div', 'tooltip-row', [el('span', 'tooltip-label', 'Owner'), el('span', null, task.owner)]) : null,
